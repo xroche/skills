@@ -14,6 +14,10 @@ else's project, a design note, or a draft you are about to show for approval.
 It is the sibling of `review-recipe`. That one attacks a diff. This one attacks
 a document, and the claims inside it.
 
+Given a path, work on that file. Given a description, work on what it names.
+Given nothing, work on the most recent draft in the conversation, and say which
+artifact you picked before starting so a wrong guess is cheap to correct.
+
 ## Why this exists
 
 A draft written by a model is confident in proportion to how fluent it is, not

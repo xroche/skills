@@ -17,19 +17,33 @@ refute instead, and give it one thing to refute at a time.
   the things that cost review rounds without being bugs: interface shape, local
   convention, test scaffolding, module boundaries.
 
-  (Say a PR wraps a payment call in a retry. The charter is not "review the retry
-  logic", it is "no request can be executed twice", and the reviewer has to
-  produce a double execution or report that it cannot. A second reviewer gets the
-  new test and asks what buggy retry would still pass it. Neither is asked to
-  find bugs.)
-
 - **`/counter-check`** attacks a document before it is sent. A pull request body,
   an issue report, a reply to a maintainer, a bug filed against another project.
 
-  (Say a bug report says a cache leaks because the eviction callback never fires.
-  The load-bearing claim is "the callback never fires", so it gets checked by
-  running the thing under a leak checker, not by reading the code. Often the leak
-  is real and the explanation is wrong, which is a different report.)
+## Using it
+
+Either as a slash command or by asking for it.
+
+```
+/review-recipe 4821
+/review-recipe feat/retry-payments
+/review-recipe 4821 -- "no request can be executed twice" "retries are bounded"
+/counter-check drafts/cache-leak-report.md
+/counter-check
+```
+
+> Let's `/review-recipe` PR 4821, the retry wrapper. The one thing I care about
+> is that no request can be executed twice.
+
+> Can you `/counter-check` the paper draft in `docs/rfc-0007.md` before I send it
+> to the list? The section on eviction order is the part I am least sure of.
+
+Naming the invariants yourself is the highest-leverage thing you can do. Given
+none, it infers one to four from the diff and the project's conventions, which
+works, but you usually know the property that matters and it does not.
+
+With no argument at all, `/counter-check` takes the last thing drafted in the
+conversation.
 
 `RECIPE.md` and `COUNTER-CHECK.md` in the plugin directory describe both without
 the Claude Code specifics. The `SKILL.md` files are what runs.
