@@ -1,0 +1,14 @@
+{
+  "name": "xroche-skills",
+  "owner": {
+    "name": "Xavier Roche",
+    "url": "https://github.com/xroche"
+  },
+  "plugins": [
+    {
+      "name": "adversarial-review",
+      "source": "./plugins/adversarial-review",
+      "description": "Narrow-charter code review and a pre-send counter-check. One reviewer per invariant, each charged to refute it."
+    }
+  ]
+}
