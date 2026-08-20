@@ -16,8 +16,20 @@ refute instead, and give it one thing to refute at a time.
   against the specification rather than against the code, and separate passes for
   the things that cost review rounds without being bugs: interface shape, local
   convention, test scaffolding, module boundaries.
+
+  (Say a PR wraps a payment call in a retry. The charter is not "review the retry
+  logic", it is "no request can be executed twice", and the reviewer has to
+  produce a double execution or report that it cannot. A second reviewer gets the
+  new test and asks what buggy retry would still pass it. Neither is asked to
+  find bugs.)
+
 - **`/counter-check`** attacks a document before it is sent. A pull request body,
   an issue report, a reply to a maintainer, a bug filed against another project.
+
+  (Say a bug report says a cache leaks because the eviction callback never fires.
+  The load-bearing claim is "the callback never fires", so it gets checked by
+  running the thing under a leak checker, not by reading the code. Often the leak
+  is real and the explanation is wrong, which is a different report.)
 
 `RECIPE.md` and `COUNTER-CHECK.md` in the plugin directory describe both without
 the Claude Code specifics. The `SKILL.md` files are what runs.
