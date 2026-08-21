@@ -1,0 +1,8 @@
+{
+  "name": "what-could-go-wrong",
+  "description": "Turn a worry about concurrency, ordering or lifecycle into a concrete answer: a failing interleaving with file:line anchors, or an honest no-finding. Builds a small TLA+ model behind the scenes; the report needs no formal methods to read.",
+  "version": "0.1.0",
+  "author": "Xavier Roche",
+  "license": "MIT",
+  "homepage": "https://github.com/xroche/skills/tree/main/plugins/what-could-go-wrong"
+}

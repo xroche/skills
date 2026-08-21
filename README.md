@@ -1,11 +1,12 @@
 # skills
 
-Claude Code skills I use and am willing to stand behind. Two plugins.
+Claude Code skills I use and am willing to stand behind. Three plugins.
 
 ```
 /plugin marketplace add xroche/skills
 /plugin install adversarial-review@xroche-skills
 /plugin install pr-craft@xroche-skills
+/plugin install what-could-go-wrong@xroche-skills
 ```
 
 ## adversarial-review
@@ -68,6 +69,25 @@ The two places a pull request wastes people's time: the review, and the wait.
 /babysit-ci 4821
 ```
 
+## what-could-go-wrong
+
+For the question a code review cannot settle by reading: *can this actually
+happen?*
+
+**`/what-could-go-wrong`** takes a worry about ordering, lifetime, concurrency or
+state and answers it with a concrete interleaving and `file:line` anchors, or
+with an honest "not found, and here is what I covered". It builds a small TLA+
+model of the part that matters and checks it; the report is plain language, and
+the model sits in an appendix for anyone who wants to audit it.
+
+```
+/what-could-go-wrong can the cleanup pass delete a cache entry a writer still holds?
+```
+
+It is explicit about what a bounded check on a hand-written model does and does
+not buy you. `LIMITATIONS.md` in the plugin is the part to read before treating a
+clean run as an answer.
+
 ## Why the reviews are adversarial
 
 Generic charters return generic findings. "Review this diff for bugs" surfaces
@@ -108,7 +128,8 @@ Claude Code, and for the review skills a harness that can run several subagents
 in parallel. Per-agent
 model choice is used to double the hardest invariant and to run the prose pass on
 something cheap; both degrade gracefully without it. Some passes shell out to
-`gh`.
+`gh`. `what-could-go-wrong` downloads TLA+ and a JRE on first use, into a cache
+under your home directory.
 
 ## Licence
 

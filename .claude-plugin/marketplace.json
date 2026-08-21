@@ -14,6 +14,11 @@
       "name": "pr-craft",
       "source": "./plugins/pr-craft",
       "description": "Make a pull request cheap to review and cheap to land: a reviewable split for a large mechanical diff, and CI diagnosis that returns instead of polling."
+    },
+    {
+      "name": "what-could-go-wrong",
+      "source": "./plugins/what-could-go-wrong",
+      "description": "Answer an ordering, lifetime or concurrency worry with a concrete failing interleaving, or an honest no-finding. TLA+ behind the scenes, plain language in front."
     }
   ]
 }
