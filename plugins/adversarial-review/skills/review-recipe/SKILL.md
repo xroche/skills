@@ -82,11 +82,23 @@ In one message, spawn the agents in parallel. Per-agent charter shape:
 >
 > Do NOT comment on style, tests, comments, or anything outside this
 > invariant. Stay under 600 words.
+>
+> Return ONCE and stop. Do not arm a watcher, do not re-notify, and do
+> not leave a sleep or wait timer that can outlive your return.
 
 The agent must:
 - Construct adversarial cases, not just read the code top-down.
 - Cite specific lines / paths where each case would land.
 - Distinguish "definitely violates" from "possibly violates / can't tell".
+
+#### Never leave a timer running past the return
+
+Every charter carries the "return once" line above, verbatim. A report-length
+budget caps what an agent *writes*; it does not reach a `sleep` the agent armed
+for its own pacing, which fires long after the verdict is delivered and costs a
+full re-read of the parent's context to say "that was only my timer". It is a
+hard charter line rather than advice. Stop any agent that notifies with nothing
+new.
 
 #### Double the model on complex invariants
 
@@ -124,7 +136,8 @@ Charter:
 > Stay under 400 words.
 
 Then apply the testing bar, which is a GATE, not a note. A behavior-bearing
-change -- especially one that alters a serialized / wire / cross-service format --
+change -- especially one that alters a serialized / wire / on-disk /
+cross-service format --
 with no test that exercises the *changed path* is a BLOCKING finding. "The
 harness can't force this path" is a reason to add a test seam, not a reason to
 waive the test. Also flag brittle docs: comments that narrate a call site, the
@@ -157,9 +170,10 @@ Charter:
 > Check whether the diff touches any of these high-risk areas without
 > matching runtime / property / contract tests:
 >
+> - Size / length / index arithmetic on attacker-controlled values.
 > - ABI, calling convention, struct layout, memory model.
 > - Concurrency primitives, atomics, locking order.
-> - Wire format, network protocol, serialization.
+> - Wire format, network protocol, on-disk cache format, serialization.
 > - Public API contract, backward compatibility.
 > - Cryptographic primitives or security-sensitive paths.
 >
@@ -262,8 +276,8 @@ and can a reader actually understand it (rules 5-9). Judge keep/drop
 first, then apply the prose rules only to what survives -- there is no
 point rewriting a comment that should be deleted.
 
-> Review only the comments the diff adds or changes, plus the PR
-> description. Work in two passes.
+> Review the comments the diff adds or changes, any comment attached to
+> a line it changes, plus the PR description. Work in two passes.
 >
 > Pass A -- does the text earn its place? One principle: condense to the
 > minimum that conveys the same information; when two versions say the
@@ -273,7 +287,10 @@ point rewriting a comment that should be deleted.
 >    makes obvious to a competent reader (paraphrases the next lines,
 >    restates a well-named call). A comment earns its place only by
 >    adding the *why*, an invariant, or a non-obvious constraint.
->    Obvious comments should be dropped, not reworded.
+>    Obvious comments should be dropped, not reworded. Same for history
+>    breadcrumbs ("moved to X", "was Y", "COPY OF ..."): git narrates
+>    history. And flag an untouched neighbouring comment the diff has
+>    made wrong -- it still describes the old behavior.
 > 2. Altitude -- a comment should explain intent and the higher-level
 >    logic, not narrate the mechanism the code lowers to. Flag "what"
 >    comments; keep "why" comments.
@@ -293,11 +310,12 @@ point rewriting a comment that should be deleted.
 >    (utilize -> use, leverage -> use, prior to -> before, in order to ->
 >    to, subsequent -> later, in the event that -> if), three or more
 >    chained clauses, a double negative, and any idiom or metaphor that
->    does not survive translation. Sentence limits: 20 words for a line
->    the reader executes (a step, a warning), 25 for everything else.
->    Count backticked code, an identifier, and a number with its unit as
->    one word each -- a comment full of `long_symbol_names` is shorter
->    than it looks.
+>    does not survive translation. Flag a comment left in another
+>    language in code the diff touches; translate it. Sentence limits:
+>    20 words for a line the reader executes (a step, a warning), 25 for
+>    everything else. Count backticked code, an identifier, and a number
+>    with its unit as one word each -- a comment full of
+>    `long_symbol_names` is shorter than it looks.
 > 6. Plain terms over jargon. Flag an acronym never expanded, and jargon
 >    used where an everyday word says the same thing. Do NOT flag the
 >    codebase's real vocabulary: type names, field names, protocol and
@@ -336,10 +354,11 @@ point rewriting a comment that should be deleted.
 >    possibility. Leave a genuine unknown alone; the target is a rule
 >    dressed up as a suggestion.
 >
-> When brevity and clarity pull apart, clarity wins, but pay for it with
-> word choice rather than extra sentences: swap the hard word for the
-> easy one (usually shorter anyway). A second sentence is justified only
-> when one sentence genuinely cannot be understood.
+> When brevity and clarity pull apart, buy the clarity with word choice,
+> not extra lines: swap the hard word for the easy one, usually shorter
+> anyway. Pass B may not raise a comment's line count -- if word choice
+> cannot carry it, the comment is doing too much, and the fix is to cut
+> the *why* down rather than add a sentence.
 >
 > Every replacement you propose must itself satisfy rules 5-9. Do not
 > hand back a suggestion that opens with a condition or leans on a word
@@ -357,14 +376,13 @@ Correctness and design-fit judge the code *as written*. This gate judges
 whether the change should have been written *at all* before a design was
 agreed. Run it when either trigger holds:
 
-- No clear tracker ticket (Jira, Linear, a GitHub issue) with stated goals
-  backs the PR -- the
-  intent lives only in the diff and the PR prose.
-- The PR is LLM-generated and originates from another team (per the detection
-  in "LLM-generated PRs get stricter review" below), so no local owner has
-  vouched for the approach.
+- No tracker item with stated goals backs the PR -- a GitHub issue, a Jira or
+  Linear ticket -- so the intent lives only in the diff and the PR prose.
+- The PR is LLM-generated, or comes from an outside contributor or another team
+  (per the detection in "LLM-generated PRs get stricter review" below), so
+  nobody who maintains the code has vouched for the approach.
 
-Skip it when a linked ticket names the goal AND the change is contained
+Skip it when a linked issue or ticket names the goal AND the change is contained
 (bug fix, mechanical refactor, an increment inside an already-agreed design).
 
 Charter:
@@ -373,14 +391,16 @@ Charter:
 > not land without a written design first -- a design doc for a scoped change,
 > or a full RFC for a cross-cutting one. Weigh the SCALE and BLAST RADIUS, not
 > the line count: does it change or add a public / REST API surface, a wire or
-> serialized format, a cross-service contract, a storage or index format, a
-> concurrency or deployment model, or introduce a new subsystem / dependency /
-> ownership boundary? Does it commit the team to a direction that is expensive
-> to reverse once shipped? Check whether a linked ticket or design doc already
+> serialized format, a cross-process or cross-service contract, a storage,
+> cache or index format, a concurrency or deployment model, or introduce a new
+> subsystem / dependency / ownership boundary? Does it commit the team to a direction that is expensive
+> to reverse once shipped? Check whether a linked issue, ticket or design doc already
 > states the goal and the agreed approach. Return one of: (a) NEEDS-RFC --
-> cross-cutting or hard-to-reverse, name what it touches and who must sign off;
+> cross-cutting or hard-to-reverse, name what it touches, what has to be agreed
+> first, and who signs off where the project names owners;
 > (b) NEEDS-DESIGN-DOC -- scoped but still needs a written, reviewed design;
-> (c) NONE -- goal is clear, scale is contained, cite the linked ticket. Do
+> (c) NONE -- goal is clear, scale is contained, cite the linked issue or
+> ticket. Do
 > NOT accept the PR body as the design doc: a description of what the code does
 > is not an agreed design. Do NOT comment on correctness, tests, or style.
 >
@@ -406,22 +426,26 @@ Charter:
 > is another agent's job. Report each of:
 >
 > - An out or in-out parameter where a return value would do. Flag the
->   `bool f(T& out)` shape by name: it forces the caller to declare the output
+>   `bool f(T *out)` / `bool f(T& out)` shape by name: it forces the caller to
+>   declare the output
 >   before the call and to know which failure left it half-written.
 > - State a caller can only obtain by reading an object *after* the call failed
 >   or threw. Name the field, say what the function should return instead. This
 >   is the highest-severity finding in this pass.
 > - Absence, failure, or "not applicable" encoded as a sentinel, a
 >   default-constructed value, or a bool flag sitting beside the data, where an
->   optional, a result type, or a variant would model it in the type itself.
+>   optional, a result type, or a variant would model it in the type itself. In
+>   C, the same finding is a yes/no query handing back a raw errno or -1 the
+>   caller has to decode.
 > - A bool parameter or field whose name does not say which way is true, or whose
 >   polarity makes readers negate it mentally at the use sites. Check every use
 >   site, not the declaration alone.
 > - A function returning less than its only caller needs, so the caller
 >   recomputes or re-reads something the function already had.
-> - Missing const, a missing nodiscard on a pure query, a large type taken or
->   returned by value where a reference or view would do, or a non-owning view
->   whose backing store may not outlive it.
+> - Missing const, a must-check return a caller can silently drop (no
+>   `nodiscard` on a pure query), a large type passed or returned by value where
+>   a pointer, reference or view would do, or a non-owning pointer or view whose
+>   backing store may not outlive it.
 >
 > For each finding give file:line, the current signature, the proposed signature,
 > and the concrete maintenance hazard a future caller hits. If a shape is
@@ -471,6 +495,39 @@ silent. When the written guide and the neighbouring code disagree, report the
 conflict and let the author choose -- do not silently pick one and do not
 "fix" the neighbours.
 
+### Step 5i: repo-convention / file-list gate (one agent, cheaper model, always)
+
+Every other gate reads the code. This one reads the FILE LIST, and catches the
+class where each changed line is defensible but the file should not have been
+touched by this PR at all. Nobody owns that question otherwise: it is not an
+invariant of the diff, and the prose pass judges comment quality, not whether a
+file belongs in the change.
+
+Charter:
+
+> Derive the repo's process conventions from its `CLAUDE.md`, `AGENTS.md`,
+> `CONTRIBUTING.md` and the git history of each changed file, then judge the
+> PR's FILE LIST against them. Do not review the code. For each changed file ask:
+> who normally touches this file, and in what kind of change? `git log --oneline
+> -- <file>` answers it -- if every prior commit to a file is a release, a version
+> bump or a packaging change, a feature PR touching it is the finding.
+> Watch for: release notes / changelog entries written ahead of the release that
+> curates them; version or ABI values bumped outside a release; generated build
+> output committed; a new test not registered with the runner; a file whose merge
+> semantics make parallel edits collide (check `.gitattributes`). For each
+> finding, name the convention, cite the evidence you derived it from, and say
+> what should have happened instead. Return NONE if the file list is consistent
+> with how the repo works. Stay under 300 words.
+
+Two findings from this gate deserve a blocking verdict: committing generated
+output, and editing a file another open PR is editing the same way (a duplicate
+release-notes block conflicts on merge, or lands twice). The rest are advisory.
+
+When a convention turns out to be real but unwritten, say so in the report: the
+fix is to write it into the repo's rules file, not just to fix this PR. An
+implicit convention will be violated again by the next author who reads the rules
+literally.
+
 ### Step 6: aggregate
 
 After the agents return, write a single report:
@@ -480,7 +537,8 @@ After the agents return, write a single report:
 
 ## Scope of this review
 Ran: correctness invariants, tests, verification surface, design/ownership,
-module boundaries, design-doc/RFC requirement, comment/conciseness (list which
+module boundaries, design-doc/RFC requirement, comment/conciseness,
+interface shape, local idiom, repo conventions / file list (list which
 actually ran). NOT judged:
 <anything not run -- e.g. performance, security posture beyond the invariants
 checked, product fit>.
@@ -504,7 +562,7 @@ checked, product fit>.
 - <sound / misplaced>: <one line; if misplaced, where it belongs and why>.
 
 ## Design-doc / RFC requirement (if the gate ran)
-- <NONE / NEEDS-DESIGN-DOC / NEEDS-RFC>: <what it touches; if needed, who signs off and which process> (a NEEDS-* verdict is BLOCKING).
+- <NONE / NEEDS-DESIGN-DOC / NEEDS-RFC>: <what it touches; if needed, what has to be agreed first and who signs off> (a NEEDS-* verdict is BLOCKING).
 
 ## Module boundaries
 - <clean / smell>: <dependency edge or misplaced type, with evidence>.
@@ -517,12 +575,16 @@ checked, product fit>.
 - <consistent / deviations>: <new declaration vs peer pattern file:line, which should change>.
 - Written guide disagrees with the neighbours: <list, or "none">.
 
+## Repo conventions / file list
+- <consistent / findings>: <file, the convention and its evidence, what should have happened>.
+
 ## Reinvention (if code was added)
 - Duplicates: <symbol to reuse, file:line>. Near-misses: <list>.
 
 ## Comments & prose (BLOCKING on self-review)
 - Earns its place: unnecessary / obvious comments <file:line -> drop>; "what"
-  comments to lift to "why" <list>; over-long comments <list>.
+  comments to lift to "why" <list>; over-long comments <list>; neighbouring
+  comments the diff made wrong <file:line -> update or drop>.
 - Readable: hard words / long sentences <file:line -> replacement>; unexpanded
   acronyms or gratuitous jargon <list>; one concept named two ways <list>;
   comments opening with context instead of the point <file:line -> rewrite>;
@@ -542,9 +604,9 @@ behavior-bearing change with no test on the changed path; a design/ownership
 violation (duplicates or misplaces a responsibility another component owns); a
 broken module boundary; an interface that only yields what a caller needs by
 reading state left behind after a failed call (Step 5g); a NEEDS-DESIGN-DOC /
-NEEDS-RFC verdict where a change's
-scale outran any agreed written design (Step 5f); on a self-review of your own
-PR, unfixed comment slop or a padded description (Step 5e). A clean correctness pass is NEVER on its own an
+NEEDS-RFC verdict where a change's scale outran any agreed written design (Step
+5f); on a self-review of your own PR, unfixed comment slop or a padded
+description (Step 5e). A clean correctness pass is NEVER on its own an
 approval. Report correctness and approvability separately, and never write "safe
 to ship" from correctness alone. Lead with any BLOCKING finding.
 
@@ -631,7 +693,8 @@ PR prose that just restates the code). When any holds, raise the bar:
 - The design/ownership gate (Step 5c) is MANDATORY, not optional, and run on a
   strong model.
 - The design-doc / RFC requirement gate (Step 5f) is MANDATORY when the PR comes
-  from another team: no local owner has vouched for the approach, so a
+  from an outside contributor or another team: nobody who maintains the code has
+  vouched for the approach, so a
   cross-cutting or hard-to-reverse change needs a written design before the
   implementation is reviewed.
 - Treat the PR description and every code comment as an unverified claim; confirm
@@ -664,10 +727,12 @@ PR prose that just restates the code). When any holds, raise the bar:
   design choice appears, the default is the Step 5c adversarial gate, not inline
   acceptance. LLM-generated PRs get the stricter bar above, not a laxer one.
 - Scale to diff size: a typo / comment / one-line change needs none of the added
-  gates -- don't run 5c/5d/5f on trivial diffs.
-- Run the design-doc / RFC gate (Step 5f) when no ticket states the goal or the
-  PR is LLM-generated from another team. Judge blast radius, not line count: an
-  API / wire / storage / cross-service / concurrency change that outruns any
+  gates -- don't run 5c/5d/5f on trivial diffs, and 5g/5h only bite once a
+  declaration appears.
+- Run the design-doc / RFC gate (Step 5f) when no issue or ticket states the
+  goal, or the PR is LLM-generated / from an outside contributor or another
+  team. Judge blast radius, not line count: an API / wire / storage /
+  cross-process / cross-service / concurrency change that outruns any
   agreed written design is BLOCKING until the design doc or RFC exists -- the
   code being correct does not waive it.
 - The comment/prose pass (Step 5e) is the ONE style pass allowed and runs on a
@@ -678,7 +743,11 @@ PR prose that just restates the code). When any holds, raise the bar:
   the slop before pushing; a two-word overrun is a nit. Do not let it widen the
   correctness agents' charters.
 - Readability never licenses vagueness: a precise domain term stays, and gets
-  expanded on first use rather than swapped for an everyday approximation.
+  expanded on first use rather than swapped for an everyday approximation. Nor
+  does it license length: the one-line default is a ceiling Pass B may not raise.
+- A dedicated prose pass over the PR body (`/humanizer` or the equivalent) stays
+  the gate, run before `gh pr create`; Step 5e's rule 8 is a second opinion on
+  it, and the only pass that sees code comments.
 - Never skip Step 4 (test-design) if the diff includes new tests --
   test-design bugs are the cheapest to introduce and the most likely
   to lock in the actual code bug.

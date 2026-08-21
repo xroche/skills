@@ -1,7 +1,7 @@
 {
   "name": "adversarial-review",
   "description": "Narrow-charter code review and a pre-send counter-check. One reviewer per invariant, each charged to refute it, verifying by building and measuring rather than by reading.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Xavier Roche",
   "license": "MIT",
   "homepage": "https://github.com/xroche/skills/tree/main/plugins/adversarial-review"
