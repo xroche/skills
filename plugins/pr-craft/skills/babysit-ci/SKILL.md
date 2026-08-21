@@ -79,3 +79,7 @@ Two legs are worth knowing generically:
   guessing.
 - Return once. Do not arm a watcher, and do not leave a sleep or wait timer that
   can outlive the return.
+
+---
+
+From [xroche/skills](https://github.com/xroche/skills). Written by Xavier Roche, MIT licensed.

@@ -145,3 +145,7 @@ follow.
 If a draft loses its central argument, that is a success, not a setback. The cost
 of finding out here is a few agent runs. The cost of finding out after sending is
 the credibility of everything else in the document.
+
+---
+
+From [xroche/skills](https://github.com/xroche/skills). Written by Xavier Roche, MIT licensed.

@@ -304,3 +304,7 @@ here. What is specific to this skill is *what* to preserve, and that lives in
 `reference/08-context-and-checkpoint.md`: a `CHECKPOINT.md` next to the model files carrying the
 property, the anchors, the run results so far, and the next action. Write it at a clean boundary (after
 a verified result, not mid-model), never as a rushed dump once the context is already gone.
+
+---
+
+From [xroche/skills](https://github.com/xroche/skills). Written by Xavier Roche, MIT licensed.

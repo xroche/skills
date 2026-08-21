@@ -781,3 +781,7 @@ test. A single narrow-charter agent given the C ABI rule for by-value
 parameters caught it instantly. That experience produced these three
 patterns: narrow-charter agents, spec-driven test audit, verification-
 surface check.
+
+---
+
+From [xroche/skills](https://github.com/xroche/skills). Written by Xavier Roche, MIT licensed.

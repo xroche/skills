@@ -65,3 +65,7 @@ To produce the split:
 ```
 
 Omit commits 4 and 5 if not needed.
+
+---
+
+From [xroche/skills](https://github.com/xroche/skills). Written by Xavier Roche, MIT licensed.
