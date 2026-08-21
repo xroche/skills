@@ -1,0 +1,8 @@
+{
+  "name": "pr-craft",
+  "description": "Make a pull request cheap to review and cheap to land: split a large mechanical diff so a reviewer reads the script instead of the output, and diagnose a red CI run without burning a context on a polling loop.",
+  "version": "0.1.0",
+  "author": "Xavier Roche",
+  "license": "MIT",
+  "homepage": "https://github.com/xroche/skills/tree/main/plugins/pr-craft"
+}

@@ -9,6 +9,11 @@
       "name": "adversarial-review",
       "source": "./plugins/adversarial-review",
       "description": "Narrow-charter code review and a pre-send counter-check. One reviewer per invariant, each charged to refute it."
+    },
+    {
+      "name": "pr-craft",
+      "source": "./plugins/pr-craft",
+      "description": "Make a pull request cheap to review and cheap to land: a reviewable split for a large mechanical diff, and CI diagnosis that returns instead of polling."
     }
   ]
 }

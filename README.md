@@ -1,10 +1,11 @@
 # skills
 
-Claude Code skills I use and am willing to stand behind. One plugin so far.
+Claude Code skills I use and am willing to stand behind. Two plugins.
 
 ```
 /plugin marketplace add xroche/skills
 /plugin install adversarial-review@xroche-skills
+/plugin install pr-craft@xroche-skills
 ```
 
 ## adversarial-review
@@ -48,7 +49,26 @@ conversation.
 `RECIPE.md` and `COUNTER-CHECK.md` in the plugin directory describe both without
 the Claude Code specifics. The `SKILL.md` files are what runs.
 
-## Why
+## pr-craft
+
+The two places a pull request wastes people's time: the review, and the wait.
+
+- **`/mechanical-refactor`** makes a large mostly-mechanical diff reviewable. The
+  mechanical part comes out of a short migration script, committed before its own
+  output, so the reviewer reads twenty lines of `sed` instead of a thousand lines
+  of result. What the script could not produce is a separate commit, read
+  normally.
+
+- **`/babysit-ci`** diagnoses a red run: which leg, why, whether this PR caused
+  it, and the fix. Then it pushes and returns. It does not loop waiting for
+  green, because `gh pr merge --auto` already does that for free.
+
+```
+/mechanical-refactor convert the visitor callbacks to take a span
+/babysit-ci 4821
+```
+
+## Why the reviews are adversarial
 
 Generic charters return generic findings. "Review this diff for bugs" surfaces
 style nits and missing tests, and misses the bug the diff is structurally exposed
@@ -84,7 +104,8 @@ survives a review that checks measurements.
 
 ## Requirements
 
-Claude Code, and a harness that can run several subagents in parallel. Per-agent
+Claude Code, and for the review skills a harness that can run several subagents
+in parallel. Per-agent
 model choice is used to double the hardest invariant and to run the prose pass on
 something cheap; both degrade gracefully without it. Some passes shell out to
 `gh`.
