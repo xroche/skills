@@ -27,6 +27,7 @@ those two you are getting.
 
 ## Provenance
 
-Adapted from an external, unpublished version and de-identified; its worked
-examples were dropped along with the codebases they anchored into. The modeling
-method here is standard TLA+ practice, not novel work.
+Written by me. It ran on private codebases before this one and was de-identified
+on the way out, which is why it ships without worked examples: the six it had
+went with the code they anchored into. The modeling method is standard TLA+
+practice, not novel work.

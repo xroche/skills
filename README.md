@@ -131,6 +131,6 @@ something cheap; both degrade gracefully without it. Some passes shell out to
 `gh`. `what-could-go-wrong` downloads TLA+ and a JRE on first use, into a cache
 under your home directory.
 
-## Licence
+## Author and licence
 
-MIT.
+All of it written by Xavier Roche. MIT.
