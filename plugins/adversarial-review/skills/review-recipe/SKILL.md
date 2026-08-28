@@ -70,6 +70,122 @@ For each invariant, write a one-sentence statement of the property
 *and* an example of what would violate it. The example matters: it
 constrains the agent's adversarial search.
 
+### Step 2b: reader legibility (one agent, strongest model, FIRST)
+
+Run this before the invariant agents, and run it on any diff that adds a file or a
+function, or grows a file by more than about thirty lines.
+
+It goes first because it gates the value of everything after it. A diff a
+maintainer cannot follow does not get reviewed; it gets skimmed, approved on
+trust, or left to rot, and the correctness passes below then certify code nobody
+will be able to change safely. Measured on a real PR: this skill ran four times
+over about fifteen agents and reported the diff clean each time, and the human
+reviewer's first and strongest comment was "the tests are really hard to parse
+... they were already structurally hard before". Every comment in that diff
+passed the prose pass individually. The file did not, because the defects were
+aggregate.
+
+Use the strongest model available (`fable`, else `opus`). Never a cheap model
+here. This is not pattern matching against a rule list, it is simulating a
+reader's comprehension, and a cheap agent asked "is this readable" returns
+generic nits, which is the bikeshedding this step must avoid.
+
+> Read each file the diff adds or grows, whole, top to bottom, the way its next
+> maintainer will. Do NOT review the diff hunk by hunk. Answer each probe with
+> file:line and a concrete fix:
+>
+> - Does each name carry the distinction it exists to express? A file that
+>   contrasts two things and calls them `A` and `B` stores the contrast in the
+>   reader's memory instead of on the page. Propose the rename or the label.
+> - Is each argument's meaning guessable at the call site alone? Cover the
+>   helper's definition and read the call. A sentinel with silent meaning (an
+>   empty string that means "the admin key") fails; propose the readable
+>   spelling.
+> - Can a reader tell what the file asserts without opening another file? Where
+>   expectations live in a golden or a fixture, judge whether the label alone
+>   says what a wrong answer would look like. A label naming the behaviour
+>   passes; a label naming a row number in a document outside the repo fails.
+> - What must be held in working memory at the file's worst point? Count live
+>   variables, in-flight state and locally defined helper contracts at that line.
+>   Name the line and the count. Six or more is a finding.
+> - Is there a shorter shape that says the same thing? If a sibling file in the
+>   same directory already has the better shape, cite it as the target.
+>
+> Tag each finding DIFF (the diff introduced or worsened it) or PRE-EXISTING
+> (the file was already hard and the diff added to the pile). Report
+> PRE-EXISTING findings, because that is a verdict a human reviewer will reach,
+> but mark them advisory.
+>
+> Then name THE single edit that buys the most comprehension per line changed,
+> with its line estimate. Rank at most three findings by that ratio and drop the
+> rest. Do NOT propose a rewrite, a new abstraction, or any edit whose line
+> count you cannot justify in one sentence. Do NOT restyle code the diff never
+> touched. If the file reads fine, say so in one line and stop.
+>
+> Do NOT comment on correctness, on the prose of individual comments, on
+> signature shape or on idiom conformance; those are other steps. Stay under 500
+> words.
+
+The single named highest-value DIFF finding is BLOCKING. Illegible code you
+wrote is yours to fix now, when you are the only person who has read it, and
+that holds on any review, not only a self-review. The other DIFF findings are
+craft findings with the standing of Step 5g. PRE-EXISTING findings never block
+and never mandate a cleanup commit: they go to the human, who decides whether
+this PR pays the debt down.
+
+Two probes overlap neighbours, so ownership is fixed here. When the fix to a
+call-site argument is a signature change, Step 5g owns it; this step owns it
+only when the fix is a name or the spelling at the call site. Step 5h asks
+whether a name matches its neighbours, this step asks whether it carries meaning
+at all: `A` and `B` pass 5h when every sibling file uses them, and fail here.
+
+### Step 2c: witness check (one agent, strong model, if the diff adds elements)
+
+Skip on a diff that only edits existing logic. Run it when the diff adds a guard,
+branch, bound, parameter, config value, handler, log line, test, wait, fixture or
+comment.
+
+Every other charter here proves the diff PRESERVES an invariant. An element that
+does nothing preserves every invariant, so it is invisible to all of them: a
+guard that cannot be false, an assertion that cannot fail, a flag nothing reads,
+a comment whose referent exists only in the author's notes. This step carries the
+converse burden. An addition must show its witness.
+
+This gap is not theoretical. On a real PR an earlier round of this skill
+*suggested* adding a wait, a later round certified that wait as sound, and a
+human then pointed out it returned on its first poll and synchronised nothing.
+Asking "is it correct?" can never catch "is it needed?".
+
+> For each element the diff ADDS -- guard, branch, retry or timeout bound,
+> parameter, config value or flag, error handler, log line, assertion, wait or
+> poll, fixture, comment, identifier -- produce its witness: the concrete input,
+> state, caller or reader under which that element changes an outcome or resolves
+> for a reader of this repository. Cite it: file:line for a caller or state, a
+> repo path for a referenced concept or document. Report each as one of:
+>
+> - WITNESSED -- give the witness.
+> - DEAD -- no witness exists: the condition cannot be false, the assertion
+>   cannot fail, the bound cannot be reached, nothing reads the value, every
+>   caller passes the same argument, the awaited state holds at entry, no
+>   assertion uses the fixture. Show why.
+> - UNRESOLVABLE -- a comment or identifier names a concept a reader of this repo
+>   cannot find. List where you searched.
+> - CANNOT-DECIDE -- reachability depends on code more than one hop from the
+>   diff. Say where you stopped.
+>
+> A deliberately dead element (a defensive guard, an invariant assert, a
+> parameter reserved for a stacked PR) is still DEAD unless the code states the
+> reason where a reader will see it. A justification that lives only in the PR
+> body does not count. Do NOT comment on correctness, style, placement or test
+> adequacy. Stay under 500 words.
+
+A DEAD element inside a test is BLOCKING: an assertion that cannot fail, a wait
+satisfied at entry or a fixture nothing checks makes Step 4 report coverage that
+does not exist, which is a missing test wearing a passing test's clothes. A DEAD
+product element or an UNRESOLVABLE reference is a change request, like a
+DUPLICATE in Step 5b, and BLOCKING on a self-review. CANNOT-DECIDE is reported,
+never dropped.
+
 ### Step 3: spawn narrow agents (one per invariant)
 
 In one message, spawn the agents in parallel. Per-agent charter shape:
@@ -162,6 +278,16 @@ specifically: assertions on state left behind by a failed or throwing call, a
 log or metric read as a test channel, a fake whose only purpose is to expose
 internals, a bare literal repeated across assertions where a named constant
 belongs, and a helper whose parameter names do not say what they hold.
+
+**A wait is a test of the schedule; audit it like one.** For each wait, poll,
+retry or barrier the diff adds, name the state before the operation and the state
+the poll waits for. If the predicate already holds beforehand, the poll succeeds
+on its first call and the wait waits on nothing: report it, and either delete it
+or replace it with a single asserted probe. A comment conceding the state never
+changes ("refuses throughout") is the tell, not a justification. The question is
+not "is this wait sound?" but "under what schedule does its first attempt fail?"
+If you cannot construct that schedule, the line should not exist. Measure rather
+than argue where you can: record what the first poll actually sees.
 
 ### Step 5: verification-surface check (one agent)
 
@@ -272,33 +398,48 @@ aerospace maintenance manuals use. The full standard is a free download
 at asd-ste100.org; the rules below are self-contained without it.
 
 Two questions, in this order: does the text earn its place (rules 1-4),
-and can a reader actually understand it (rules 5-9). Judge keep/drop
+and can a reader actually understand it (rules 5-10). Judge keep/drop
 first, then apply the prose rules only to what survives -- there is no
 point rewriting a comment that should be deleted.
 
 > Review the comments the diff adds or changes, any comment attached to
 > a line it changes, plus the PR description. Work in two passes.
 >
-> Pass A -- does the text earn its place? One principle: condense to the
-> minimum that conveys the same information; when two versions say the
-> same thing, the shorter wins.
+> Pass A -- does the text earn its place? Name the reader and the action
+> they are about to take: approve this diff, schedule the work, decide a
+> design, unblock a build. Keep the facts that change what they do, and
+> cut the rest, however true and however hard-won -- effort spent is not
+> a reason to keep a fact. Of two versions carrying the same facts, the
+> shorter wins.
 >
 > 1. Necessary -- flag any comment that states what the code already
 >    makes obvious to a competent reader (paraphrases the next lines,
->    restates a well-named call). A comment earns its place only by
->    adding the *why*, an invariant, or a non-obvious constraint.
->    Obvious comments should be dropped, not reworded. Same for history
->    breadcrumbs ("moved to X", "was Y", "COPY OF ..."): git narrates
->    history. And flag an untouched neighbouring comment the diff has
->    made wrong -- it still describes the old behavior.
-> 2. Altitude -- a comment should explain intent and the higher-level
->    logic, not narrate the mechanism the code lowers to. Flag "what"
->    comments; keep "why" comments.
+>    restates a well-named call). When a comment explains a helper call,
+>    open the helper's own doc comment: a call-site comment that restates
+>    it is the same finding, because the explanation lives once, on the
+>    helper. A comment earns its place only by adding the *why*, an
+>    invariant, or a non-obvious constraint. Obvious comments should be
+>    dropped, not reworded. Same for history breadcrumbs ("moved to X",
+>    "was Y", "COPY OF ..."): git narrates history. And flag an untouched
+>    neighbouring comment the diff has made wrong -- it still describes
+>    the old behavior.
+> 2. Altitude -- a comment explains intent and the higher-level logic,
+>    not the mechanism the code lowers to. Flag "what" comments; keep
+>    "why" comments. The same filter runs one level up, on the document
+>    itself: identifiers and line numbers belong in a PR, not in an RFC;
+>    business impact belongs in the epic, not in a commit message. A
+>    fact at the wrong altitude is cut here and raised there, not
+>    reworded.
 > 3. Length -- one line unless a second line is load-bearing. Flag any
->    comment longer than its point requires.
-> 4. PR description -- flag a body that restates the diff, pads with
->    rule-of-three or filler, or runs long where a few lines carry the
->    same information.
+>    comment longer than its point requires. Then judge the file, not only
+>    each comment: when the same mechanical pattern (a wait, a flush, a
+>    retry) carries a multi-line comment at every occurrence, keep one and
+>    cut the rest, or move the explanation to the helper. A file the
+>    comments make hard to scan is a finding even when each comment
+>    survives alone.
+> 4. PR description -- flag a body that restates the diff, carries a
+>    fact its reader cannot act on, pads with rule-of-three or filler,
+>    or runs long where a few lines carry the same information.
 >
 > Pass B -- can a reader understand it? Assume the reader is a competent
 > engineer who is not a native English speaker, is new to this code, and
@@ -353,6 +494,15 @@ point rewriting a comment that should be deleted.
 >    it is not. Rewrite "may" / "might" / "could" to "can" for plain
 >    possibility. Leave a genuine unknown alone; the target is a rule
 >    dressed up as a suggestion.
+>10. References resolve inside this repository. For every pointer a
+>    comment makes -- a row, a table, a section, a document, a numbering
+>    scheme -- check that a reader holding only this repo can follow it,
+>    by grepping for the target. Flag any reference that resolves only in
+>    the author's notes, a private spreadsheet or an unlinked document:
+>    "Row 13" of a table that exists nowhere in the tree is the canonical
+>    case. Fix by inlining the fact the reference carried, committing the
+>    target, or dropping the pointer. A ticket link is the one exception,
+>    and only as added context.
 >
 > When brevity and clarity pull apart, buy the clarity with word choice,
 > not extra lines: swap the hard word for the easy one, usually shorter
@@ -360,7 +510,7 @@ point rewriting a comment that should be deleted.
 > cannot carry it, the comment is doing too much, and the fix is to cut
 > the *why* down rather than add a sentence.
 >
-> Every replacement you propose must itself satisfy rules 5-9. Do not
+> Every replacement you propose must itself satisfy rules 5-10. Do not
 > hand back a suggestion that opens with a condition or leans on a word
 > you just flagged.
 >
@@ -536,12 +686,20 @@ After the agents return, write a single report:
 # Review verdict
 
 ## Scope of this review
-Ran: correctness invariants, tests, verification surface, design/ownership,
-module boundaries, design-doc/RFC requirement, comment/conciseness,
-interface shape, local idiom, repo conventions / file list (list which
-actually ran). NOT judged:
+Ran: reader legibility, witness check, correctness invariants, tests,
+verification surface, design/ownership, module boundaries, design-doc/RFC
+requirement, comment/conciseness, interface shape, local idiom, repo
+conventions / file list (list which actually ran). NOT judged:
 <anything not run -- e.g. performance, security posture beyond the invariants
 checked, product fit>.
+
+## Legibility
+- Highest-value edit: <the one change, line estimate> (BLOCKING when DIFF-tagged).
+- Other DIFF findings: <list>. PRE-EXISTING (advisory): <list>. Or "reads fine".
+
+## Witness check (if elements were added)
+- DEAD in tests: <list> (each BLOCKING). DEAD in product code: <list>.
+- Unresolvable references: <list>. Cannot-decide: <list>.
 
 ## Correctness — invariants checked
 - <invariant 1>: PASS / P0 / inconclusive (one-line rationale)
@@ -599,10 +757,11 @@ checked, product fit>.
 - Approvable: <YES only if zero BLOCKING; else NO + shortest path to yes>.
 ```
 
-The BLOCKING bar -- any one blocks approval: a P0 correctness violation; a
-behavior-bearing change with no test on the changed path; a design/ownership
-violation (duplicates or misplaces a responsibility another component owns); a
-broken module boundary; an interface that only yields what a caller needs by
+The BLOCKING bar -- any one blocks approval: the named highest-value legibility
+change on a DIFF-tagged finding (Step 2b); a DEAD test element from Step 2c; a
+P0 correctness violation; a behavior-bearing change with no test on the changed
+path; a design/ownership violation (duplicates or misplaces a responsibility
+another component owns); a broken module boundary; an interface that only yields what a caller needs by
 reading state left behind after a failed call (Step 5g); a NEEDS-DESIGN-DOC /
 NEEDS-RFC verdict where a change's scale outran any agreed written design (Step
 5f); on a self-review of your own PR, unfixed comment slop or a padded
@@ -675,6 +834,10 @@ again, and new *test* code is the likeliest of all. On a real PR a test added to
 prove a reviewer's blocking fix violated the very principle that comment
 asserted, and a full review pass ran in between without noticing.
 
+A construct added because a reviewer or an earlier review round asked for it gets
+the same audit as any other line: verify it is load-bearing, not merely sound.
+"A review suggested it" is a provenance, not evidence.
+
 **A suggested rename can carry a semantic change.** When a reviewer offers a name
 via a suggestion block, check whether it means the same thing as the old one. An
 inverted name (`isDamaged` for a field that meant `isValid`) needs the logic
@@ -709,6 +872,14 @@ PR prose that just restates the code). When any holds, raise the bar:
 
 - Never widen an agent's charter to "find any bugs." One agent, one
   invariant.
+- Legibility runs FIRST and its named highest-value change blocks. A diff a
+  maintainer cannot follow does not get reviewed, it gets approved on trust, so
+  certifying its correctness first wastes the pass.
+- An addition owes a witness. "Is it correct?" never answers "is it needed?", and
+  a test element that cannot fail is a missing test in disguise, inheriting the
+  testing bar's BLOCKING severity.
+- Never let this skill's own suggestions escape the witness check. A construct
+  added because an earlier round asked for it is exactly where a no-op hides.
 - Never accept "general correctness" as an invariant.
 - Craft is in scope, not a bonus. Run Step 5g (interface shape) and Step 5h
   (local idiom) on any diff that adds a declaration. Correctness findings alone
@@ -736,7 +907,8 @@ PR prose that just restates the code). When any holds, raise the bar:
   agreed written design is BLOCKING until the design doc or RFC exists -- the
   code being correct does not waive it.
 - The comment/prose pass (Step 5e) is the ONE style pass allowed and runs on a
-  cheaper model. It judges both whether the text earns its place and whether a
+  cheaper model. It judges both whether the text earns its place -- named
+  reader, named decision, right altitude for the document -- and whether a
   non-native, non-local reader can understand it: plain English, no gratuitous
   jargon, point before context, unambiguous modals, no AI-writing tells. On a
   self-review of your own PR its ambiguity-bearing findings are BLOCKING -- fix
