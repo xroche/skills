@@ -398,9 +398,17 @@ aerospace maintenance manuals use. The full standard is a free download
 at asd-ste100.org; the rules below are self-contained without it.
 
 Two questions, in this order: does the text earn its place (rules 1-4),
-and can a reader actually understand it (rules 5-10). Judge keep/drop
+and can a reader actually understand it (rules 5-12). Judge keep/drop
 first, then apply the prose rules only to what survives -- there is no
 point rewriting a comment that should be deleted.
+
+Run the mechanical pass FIRST, on the PR body and on any prose file the
+diff touches: `~/.claude/bin/check-prose.py FILE`. It reports
+noun-phrase fragments, punctuation carrying logic, over-long sentences
+and promotion words, which is the subset an eye pass misses. Hand its
+output to the agent as a starting list, not as the finding set: it
+cannot see whether a fact earns its place, and it does not read code
+comments out of a diff. A clean run is not a passing review.
 
 > Review the comments the diff adds or changes, any comment attached to
 > a line it changes, plus the PR description. Work in two passes.
@@ -436,15 +444,28 @@ point rewriting a comment that should be deleted.
 >    retry) carries a multi-line comment at every occurrence, keep one and
 >    cut the rest, or move the explanation to the helper. A file the
 >    comments make hard to scan is a finding even when each comment
->    survives alone.
+>    survives alone. Prose longer than the body it documents is a finding
+>    on sight: eleven lines of Doxygen on a one-line function is not
+>    defensible.
 > 4. PR description -- flag a body that restates the diff, carries a
 >    fact its reader cannot act on, pads with rule-of-three or filler,
->    or runs long where a few lines carry the same information.
+>    or runs long where a few lines carry the same information. Flag a
+>    body that narrates the investigation: "master moves, the round
+>    fails, the queue is re-submitted" is a chronology dressed as an
+>    explanation, and it opens with events instead of with what breaks.
+>    Where two texts say the same thing, name the survivor and shorten
+>    that one; deleting the copy and leaving the original discharges
+>    nothing, and the original is usually the longer one. Flag a list of
+>    findings that does not close with what the reader should do about
+>    them, and a link the reader is left to infer: what is obvious from
+>    inside the work is not obvious from outside it.
 >
 > Pass B -- can a reader understand it? Assume the reader is a competent
 > engineer who is not a native English speaker, is new to this code, and
 > may be from another team. Apply these to every comment that survives
-> Pass A, and to the PR description.
+> Pass A, and to the PR description. Never re-edit wording a human
+> wrote: leave their redundancies alone, and confine every finding to
+> text this diff adds or changes.
 >
 > 5. Plain English. Short sentences, one idea each, active voice, common
 >    words. Flag a rare or latinate word that has a plain equivalent
@@ -502,7 +523,30 @@ point rewriting a comment that should be deleted.
 >    "Row 13" of a table that exists nowhere in the tree is the canonical
 >    case. Fix by inlining the fact the reference carried, committing the
 >    target, or dropping the pointer. A ticket link is the one exception,
->    and only as added context.
+>    and only as added context. Introduce every reference on first use: a
+>    log string is "the log line `X`", not a bare quoted phrase. A date
+>    earns its place only with the reason it matters.
+>11. Grammar floor. Brevity is bought with facts, never with grammar.
+>    Cutting a whole claim is right; cutting the subject or the verb out
+>    of a claim that stays saves three words and makes every reader
+>    rebuild the missing subject, so the effort goes up as the word count
+>    goes down. Flag any noun-phrase fragment. Doc-comment summaries are
+>    where they hide, because the opener looks like a convention:
+>    `/// Whether the cache is warm.` and `/// How many hosts are needed.`
+>    are both fragments. Write a predicate as the question it answers,
+>    question mark and all -- `/// Should this host publish its own copy?`
+>    -- and when its conditions are necessary and sufficient, say `iff`
+>    and put them in a bullet list under `Returns true iff:`, one per
+>    line, because a list shows the boolean structure that prose makes
+>    the reader assemble. On a small predicate, give the contract and
+>    stop.
+>12. Punctuation carries no logic. Flag an em dash, a semicolon, a colon
+>    or a parenthesis joining two statements: each one leaves the reader
+>    to infer cause, contrast, example or explanation, and that inference
+>    is where they go wrong. Name the relation with a word instead --
+>    because, so, but, then, rather than, for example -- or split the
+>    sentence. A dash separating a section title from its subtitle is
+>    fine, because a title is not a spliced statement.
 >
 > When brevity and clarity pull apart, buy the clarity with word choice,
 > not extra lines: swap the hard word for the easy one, usually shorter
@@ -510,9 +554,15 @@ point rewriting a comment that should be deleted.
 > cannot carry it, the comment is doing too much, and the fix is to cut
 > the *why* down rather than add a sentence.
 >
-> Every replacement you propose must itself satisfy rules 5-10. Do not
-> hand back a suggestion that opens with a condition or leans on a word
-> you just flagged.
+> Every replacement you propose must itself satisfy rules 5-12, and must
+> be SHORTER than what it replaces. Count both, and report the real
+> figure: an equal-length rewrite has not discharged a length finding,
+> and if the text cannot shrink without dropping a fact, say so and name
+> the fact. Do not hand back a suggestion that opens with a condition or
+> leans on a word you just flagged. Re-judge any prose the author already
+> rewrote to satisfy an earlier review comment, because a pass that adds
+> the requested fact and keeps everything already there is exactly where
+> length grows back.
 >
 > For each finding give `file:line` (or "PR body"), which rule it breaks,
 > the offending text, and the replacement -- or "drop". Do NOT comment on
