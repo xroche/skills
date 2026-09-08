@@ -36,6 +36,23 @@ Two patterns that catch what generic review misses:
 This skill drives both patterns plus a risk-area verification-surface
 check.
 
+## The two techniques that produced the most signal
+
+Reach for these two first, instead of rediscovering them halfway through a
+review.
+
+**Double one invariant across two models.** Run the same charter on two
+different models and compare the verdicts, because the agreement is itself the
+evidence. Two models rarely rationalise the same broken path, so an independent
+double PASS is worth far more than one agent's PASS. Step 3 holds the mechanics
+and the rule that a disagreement is inconclusive.
+
+**Build a mutation matrix over the clauses of one guard.** Mutate each clause of
+the guard on its own, then record which tests turn red for each mutation. The
+off-diagonal passes are the payload, because they prove that each test fails for
+its own clause and that no test is standing in for another test's coverage. Step
+4b holds the method.
+
 ## Workflow
 
 ### Step 1: gather the diff and context
@@ -45,9 +62,13 @@ check.
 - Otherwise diff the branch against its merge base.
 - Read any `CLAUDE.md` at repo root and in directories the diff touches.
 - Skim the PR description / commit messages for the author's intent.
+- Split the added lines into test and product with `git diff --numstat
+  <base>...<head>`, counting a `_test` suffix, a `test/` path, `testdata/` and
+  any golden file as test. Record both numbers, because Step 5j's trigger and
+  the report both read them.
 
 Capture: the diff, the touched paths, the project's coding rules, the
-author's stated goal.
+author's stated goal, and the added test and product line counts.
 
 ### Step 2: identify invariants
 
@@ -110,6 +131,32 @@ generic nits, which is the bikeshedding this step must avoid.
 >   Name the line and the count. Six or more is a finding.
 > - Is there a shorter shape that says the same thing? If a sibling file in the
 >   same directory already has the better shape, cite it as the target.
+> - Read every doc comment the diff puts on a declaration you would have to
+>   understand to use it. Answer two questions about each block, and answer the
+>   first one before you count anything.
+>   - Did you have to read the block twice before you could state what the
+>     declaration guarantees? Report that honestly, because your own re-read is
+>     the only instrument this probe has. A block you re-read is a finding
+>     whatever its sentence lengths and whatever its ratio to the body, and when
+>     you name THE single highest-value edit below, a re-read block outranks
+>     every finding that rests on a word count or a line count.
+>   - How many lines does the block spend? A doc comment on a declaration exists
+>     to give a caller the contract, so it earns about ten lines of prose, plus
+>     one line for each parameter and return value it documents. Ten lines is
+>     roughly what a reader takes in before the declaration itself scrolls off
+>     the screen, and the per-parameter lines are contract rather than
+>     explanation, so they do not compete with it. A block past that cap is a
+>     finding, and so is a block longer than the body it describes, which catches
+>     the small case the cap lets through. Give both counts, the comment's and
+>     the body's, because a block can sit at a quarter of the body's length and
+>     still be three times the cap.
+>
+>   Then say where the material over the cap should go. A threat model, a
+>   rationale, a history or a list of alternatives belongs in the PR body or the
+>   ticket, and an invariant the caller must respect stays in the comment.
+>   Propose the cut, not a rewrite of equal length. Never propose splitting one
+>   long sentence into several short ones, because that keeps every fact and adds
+>   lines, so it makes the block worse against both questions above.
 >
 > Tag each finding DIFF (the diff introduced or worsened it) or PRE-EXISTING
 > (the file was already hard and the diff added to the pile). Report
@@ -122,20 +169,44 @@ generic nits, which is the bikeshedding this step must avoid.
 > count you cannot justify in one sentence. Do NOT restyle code the diff never
 > touched. If the file reads fine, say so in one line and stop.
 >
-> Do NOT comment on correctness, on the prose of individual comments, on
-> signature shape or on idiom conformance; those are other steps. Stay under 500
-> words.
+> Do NOT comment on correctness, on the wording of a single sentence, on
+> signature shape or on idiom conformance; those are other steps. Judging whether
+> a doc comment is worth its length IS yours. Stay under 500 words.
 
 The single named highest-value DIFF finding is BLOCKING. Illegible code you
 wrote is yours to fix now, when you are the only person who has read it, and
-that holds on any review, not only a self-review. The other DIFF findings are
-craft findings with the standing of Step 5g. PRE-EXISTING findings never block
+that holds on any review, not only a self-review. A doc block that failed the
+one-read question is a DIFF finding, so it blocks whenever it is the named
+highest-value edit. The other DIFF findings are
+craft findings with the standing of Step 5g, so Step 5j's precedence rule
+applies to them, and a rename beats a new named entity only one call site would
+use. PRE-EXISTING findings never block
 and never mandate a cleanup commit: they go to the human, who decides whether
 this PR pays the debt down.
 
+**Why no word count could have caught this, and why these rules are not
+redundant with the word limits.** Numeric sentence limits were once the whole
+comment rule here, and they let a 36-line doc block through five prose passes on two
+models before the human reviewer called it "long as a book". Every sentence in
+it was inside the 25-word limit, because one earlier pass had split a 59-word
+sentence into four short ones and reported that as a fix, which left the block
+longer than it found it. The block was about a quarter of the length of the
+134-line function under it, so the longer-than-the-body rule never fired either.
+A word count measures the sentence a writer produced. It cannot measure whether
+a reader can hold the block in one pass, and it cannot see that the same
+explanation is already written in three other artifacts. So keep the one-read
+question, the line cap and Step 5e's cross-artifact search even when every
+sentence passes its limit, because those three are what the counting rules are
+blind to. Do not delete them as duplicates of the word limits.
+
 Two probes overlap neighbours, so ownership is fixed here. When the fix to a
 call-site argument is a signature change, Step 5g owns it; this step owns it
-only when the fix is a name or the spelling at the call site. Step 5h asks
+only when the fix is a name or the spelling at the call site. On comments, this
+step owns the verdict on length and on whether a reader can act on the block at
+all, and Step 5e owns the sentence-level rules applied to whatever survives.
+Step 5e also owns the search for the same prose in the PR body, the ticket and
+the project docs, because it is the step that already has the PR body open.
+Step 5h asks
 whether a name matches its neighbours, this step asks whether it carries meaning
 at all: `A` and `B` pass 5h when every sibling file uses them, and fail here.
 
@@ -251,6 +322,27 @@ Charter:
 >
 > Stay under 400 words.
 
+**A confirmation-biased test takes six shapes.** Across three consecutive
+rounds on five branches, every single finding was a test that passed for a reason
+other than the one it advertised, and not one finding was a wrong behaviour in
+product code. So hunt these shapes by name rather than only stating the
+principle:
+
+- An assertion cannot tell two states apart, for example a NULL and an epoch
+  zero that are read back through the same cache.
+- A table passes against a wrong implementation, because no row distinguishes the
+  wrong implementation from the right one.
+- A check accepts any error, where the identity of the error is what decides the
+  behaviour.
+- A race's check missed its own injected bug in eighteen runs out of twenty.
+- A request asserts only that it did not error.
+- A test name claims a consequence that no assertion in the test checks.
+
+The class recurs, so the audit has to recur with it. These shapes turned up in
+tests that were written to satisfy an earlier round's finding, which means a
+construct added because a review asked for it needs the same audit as any other
+line.
+
 Then apply the testing bar, which is a GATE, not a note. A behavior-bearing
 change -- especially one that alters a serialized / wire / on-disk /
 cross-service format --
@@ -277,7 +369,9 @@ catch the bug (adequacy), and what did it have to touch to run (shape). Flag
 specifically: assertions on state left behind by a failed or throwing call, a
 log or metric read as a test channel, a fake whose only purpose is to expose
 internals, a bare literal repeated across assertions where a named constant
-belongs, and a helper whose parameter names do not say what they hold.
+belongs, and a helper whose parameter names do not say what they hold. Propose
+that constant only inside the file the test lives in. Retiring a lint
+suppression across other files is a refactor of its own, and Step 5j owns it.
 
 **A wait is a test of the schedule; audit it like one.** For each wait, poll,
 retry or barrier the diff adds, name the state before the operation and the state
@@ -288,6 +382,64 @@ changes ("refuses throughout") is the tell, not a justification. The question is
 not "is this wait sound?" but "under what schedule does its first attempt fail?"
 If you cannot construct that schedule, the line should not exist. Measure rather
 than argue where you can: record what the first poll actually sees.
+
+### Step 4b: test necessity and folding (one agent, after the test-design audit)
+
+More tests do not mean a better PR. Every other step in this skill pushes toward
+adding a test, and none of them asks whether the set that came out earns its
+size. Run this after Step 4, because it works from Step 4's mutations.
+
+Charter:
+
+> Enumerate every test the diff adds across every file of the diff at once,
+> never file by file, and count each row of a table-driven test as a test of its
+> own. A new test file commonly re-pins a function an existing table already
+> drives through a caller, and that overlap is invisible to a per-file walk.
+> For each one, name the mutation of product code that turns it red, then record
+> every test that same mutation turns red. Build the matrix of mutations against
+> tests and report:
+>
+> - Two or more tests die to exactly the same mutation set. They are one test
+>   wearing two names, so say which one survives.
+> - One test's mutation set is a subset of another test's. Report it as redundant
+>   unless you can name a mutation that only it catches. Two exceptions. A test
+>   whose mutation set against this diff is empty is not redundant when it pins a
+>   precondition the new product code relies on, so name the reliance with
+>   file:line and keep the test. The simplest case in a table is not redundant
+>   when a reader uses it to read the rest, even where a busier case subsumes it.
+> - Separate test functions walk the same path with different data. They want to
+>   be rows in one table, so propose the table.
+> - A test whose named subject is a function in a package the diff does not
+>   touch. Say so and give the path. A mutation matrix marks such a test
+>   necessary the moment it uniquely kills a mutation, so the matrix rewards
+>   scope creep instead of catching it, and only this bullet reports it. Where
+>   it does kill a mutation of that untouched code, it is real coverage sitting
+>   in the wrong package: say it belongs in that package's own test file, and
+>   never propose deleting it.
+>
+> For every fold you propose, state the invariant that makes it safe. Every
+> mutation that turned some test red before the fold must still turn some test red
+> after it. When you cannot state that for a fold, do not propose the fold.
+>
+> Do NOT propose a fold that keeps the count down by widening an assertion, for
+> example a specific error becoming any error, or an exact value becoming a range.
+> That trades coverage for tidiness, and a test count does not show it.
+>
+> Then take every product function the added tests call, including functions the
+> diff does not modify, mutate each clause separately, and give the full matrix.
+> Record for each mutation every test it turns red, including tests already on
+> master, because a duplicate of an existing test is only visible from there.
+> The off-diagonal passes are what you are after, because they show that each
+> test fails for its own clause and that no test is standing in for another
+> test's coverage.
+>
+> Do NOT comment on correctness, style or design. Stay under 500 words.
+
+A duplicate or a foldable pair is a change request on a self-review of your own
+PR, and advisory otherwise, because the author picked the shape. A fold that has
+already been applied by widening an assertion is a coverage loss, so it carries
+the testing bar's severity from Step 4 rather than the advisory standing of the
+rest of this step.
 
 ### Step 5: verification-surface check (one agent)
 
@@ -349,11 +501,15 @@ from masquerading as an approval. Run one adversarial agent whose whole job is t
 argue AGAINST the change:
 
 > Argue this change should not land as written. Make the strongest case that it
-> (a) duplicates a responsibility another component / service / module already
-> owns -- name it, file:line; (b) belongs in a different component (e.g. an
+> (a) works around a defect that lives upstream, in another repository or
+> another layer, instead of fixing it where it is -- name the upstream defect and
+> the layer that owns the information the fix needs; (b) duplicates a
+> responsibility another component / service / module already
+> owns -- name it, file:line; (c) belongs in a different component (e.g. an
 > engine hard-coding vocabulary, strings, or a wire shape that the consumer
-> already owns); (c) reinvents a schema or primitive instead of reusing the
-> single source of truth. Check the change against the owning component and any
+> already owns); (d) reinvents a schema or primitive instead of reusing the
+> single source of truth. A dump written for a person to read is still a schema
+> once a program parses it, so count it. Check the change against the owning component and any
 > spec / design doc. If the design is sound, say so plainly and why; if it is
 > misplaced, lead with the concrete relocation. Do NOT accept the PR's own
 > justification as the answer -- verify it.
@@ -363,6 +519,106 @@ argue AGAINST the change:
 Never let a single agent's "NOVEL / justified / acceptable tradeoff" stand as
 the verdict here. That phrasing is the tell that a design was rationalized, not
 challenged. If it appears, verify against the owner before accepting.
+
+**Is this fix in the right repository and the right layer?** This is the same
+question one layer out, so ask it of every fix. Are we working around a bug in
+the upstream component inside the consumer, when the root cause should be fixed
+upstream instead?
+
+One worked case shows what the question buys. One service prints a list of
+records as a text dump meant for a person to read, and several fields of each
+record are free text supplied by a third party. Another service parses that
+text. One pull request hardens the parser so it refuses a dump whose shape its
+own header does not vouch for. That hardening is worth having, because it turns
+silent corruption into a refusal. It is still not the fix. The format stays
+ambiguous, and the case that proves it is a stored value containing a comma,
+which the dump prints exactly like a separator, so the parse gives that record
+one field too many and silently drops the last one. No reader can recover from
+that, because the information is already lost by the time the reader sees it.
+The root cause is the format, in the other repository, and the durable fix is a
+machine-readable output mode whose precedent already exists in the same tree for
+a sibling tool.
+
+The test to apply is one question. Ask whether this change would be deleted once
+the upstream defect is fixed. When the answer is yes, the change is a mitigation
+and not a fix, so three things follow. Say that in the PR body in one sentence.
+Name the upstream ticket there. Then check that the upstream ticket really
+exists, rather than assuming somebody will file it. A mitigation that does not
+announce itself gets read as the fix, the root cause never gets scheduled, and
+that is how a workaround becomes permanent.
+
+One caution keeps the rule from being over-applied. A fix in a consumer is not
+automatically a workaround. Of five pull requests in one day only one was, and
+the other four corrected defects that genuinely lived where they were fixed,
+including one in the very same function as the workaround. So ask the question
+per defect and not per file, and the discriminator is whether the information
+needed to behave correctly is available at that layer at all.
+
+**Who produces this input, and do we control them?** Ask this of every parser the
+diff adds. A parser's complexity should be inversely proportional to the
+reviewer's control over the producer. Input from a third party earns a defensive
+parser, because the format is not ours to change. Input from a program in the same
+organisation earns none, because changing the producer to emit a machine-readable
+form is available and it is cheaper than every parser that would otherwise be
+written against the text. Hand-writing a parser for a format we choose is a
+decision to keep the wrong choice. Run this as its own agent whenever the diff
+parses, scans or pattern-matches text it did not construct:
+
+> The diff parses input it did not construct. Trace that input back to the program
+> that produces it, and name the repository that owns the producer. Then answer
+> whether the organisation reviewing this diff can change that producer, and give
+> the evidence for the answer, meaning the producer's path and its repository,
+> rather than an assumption.
+>
+> Search for a precedent before you judge the parser. Does a sibling tool in the
+> producer's own package, or an adjacent code path in the consumer, already emit or
+> consume a structured form of the same or similar data? Name it with file:line.
+> That precedent is the cheapest evidence that the machine-readable mode belongs in
+> the producer.
+>
+> Then report every tell that the diff is rebuilding structure a serialiser would
+> have carried for free:
+>
+> - A line matched by prefix anywhere in the stream, which is position-independent
+>   parsing of a positional format.
+> - A version check on the input, which means the producer already versions the
+>   format, so the format is a wire format in denial.
+> - A separator, heading or banner string compared byte for byte.
+> - Records counted to detect truncation.
+> - Structure reconstructed from indentation, blank lines or headings.
+>
+> Last, say whether the format carries data from a source the producer does not
+> control, such as customer-supplied free text printed verbatim. Name those fields
+> and show where they enter the stream.
+>
+> Return one of: (a) PRODUCER-OWNED, so the parser should not exist and the fix
+> belongs in the producer, naming the output mode to add and the precedent you
+> found; (b) PRODUCER-OWNED-AND-UNTRUSTED, the same verdict plus the structure a
+> hostile value can forge, with the forged record spelled out; (c) THIRD-PARTY, so
+> a defensive parser is correct here, naming the producer and why it cannot be
+> changed. Do NOT comment on the parser's correctness, on style or on tests. Stay
+> under 500 words.
+
+A PRODUCER-OWNED verdict is a change request with the standing of a DUPLICATE in
+Step 5b, and it is BLOCKING on a self-review of your own pull request.
+PRODUCER-OWNED-AND-UNTRUSTED is BLOCKING on any review, because a hand-written
+parser over untrusted data is an injection surface rather than technical debt. A
+value carrying an injected newline forges the structure the parser trusts, so the
+parser can be made to report a record nobody created, or to stop early and report
+success. THIRD-PARTY is an honest pass and it has to stay available, because a
+defensive parser is the right answer for a format we do not own.
+
+The worked case above is this one, and one further fact belongs to this
+question. Two parsers of that dump grew inside the consuming service, and they
+disagreed about what to refuse.
+
+This question and the upstream-defect rule above fire from opposite directions, so
+run both. This one fires on sight, because the tells sit in the added lines and the
+producer question needs only the diff and a grep. The upstream-defect question
+fires later, once somebody has already named the format as the defect. Step 5b
+substitutes for
+neither, because it reports NOVEL on the first parser of a format, correctly, and
+that reads as a clean pass.
 
 ### Step 5d: module-boundary / layering gate (one agent, if the diff moves types or adds deps)
 
@@ -388,9 +644,22 @@ reasoning. On a self-review of your own PR, its findings are BLOCKING:
 slop comments and a padded description are yours to fix before pushing,
 not a follow-up to defer. What blocks is the ambiguity-bearing subset:
 a comment a reader can misread, a requirement stated as a wish, a
-condition buried after the command. A sentence two words over the limit
-is a nit. Skip on a trivial diff that adds no comments and barely
+condition buried after the command. A block of prose that is also written in the
+PR body, the ticket or a project doc blocks as well, because those copies
+diverge and the code copy is the one that goes stale. A sentence two words over
+the limit is a nit. Skip on a trivial diff that adds no comments and barely
 touches the PR body.
+
+**Run this pass on your own text, and run it before you publish.** Five PR
+bodies went out at 241, 256, 269, 286 and about 450 words, and the reviewer's
+verdict was that they were long and unreviewable. The rewrite carried the same
+facts at 85, 91, 112, 121 and 152 words. The reviewer then asked "did you run
+the latest rules on conciseness", and the answer was no, because the pass had
+been run on the ticket text and never on the PR bodies, while a review charter
+had been told to check those same bodies. Running a style pass on someone else's
+text while skipping your own is the mistake to name and avoid. The word budget
+in rule 4 is therefore a gate that runs before publishing, not a note collected
+afterwards.
 
 Pass B's word limits, modal ladder and one-concept-one-term rule come
 from ASD-STE100 (Simplified Technical English), the controlled language
@@ -398,7 +667,7 @@ aerospace maintenance manuals use. The full standard is a free download
 at asd-ste100.org; the rules below are self-contained without it.
 
 Two questions, in this order: does the text earn its place (rules 1-4),
-and can a reader actually understand it (rules 5-12). Judge keep/drop
+and can a reader actually understand it (rules 5-13). Judge keep/drop
 first, then apply the prose rules only to what survives -- there is no
 point rewriting a comment that should be deleted.
 
@@ -411,7 +680,8 @@ cannot see whether a fact earns its place, and it does not read code
 comments out of a diff. A clean run is not a passing review.
 
 > Review the comments the diff adds or changes, any comment attached to
-> a line it changes, plus the PR description. Work in two passes.
+> a line it changes, plus the PR title, the commit titles and the PR
+> description. Work in two passes.
 >
 > Pass A -- does the text earn its place? Name the reader and the action
 > they are about to take: approve this diff, schedule the work, decide a
@@ -431,6 +701,20 @@ comments out of a diff. A clean run is not a passing review.
 >    "was Y", "COPY OF ..."): git narrates history. And flag an untouched
 >    neighbouring comment the diff has made wrong -- it still describes
 >    the old behavior.
+>
+>    The explanation lives once across the whole set of artifacts, and not only
+>    once inside the code. Before you accept any comment longer than about three
+>    lines, go and look for the same content in the PR body, in the linked
+>    ticket, and in any project documentation this repository points at, such as
+>    a `CLAUDE.md`, an `AGENTS.md`, a page under `doc/`, or a design note the
+>    ticket links. Report where you found each copy, naming the artifact and the
+>    line, and write "searched, found nowhere else" when that is the answer,
+>    because a silent pass here reads exactly like a skipped one. Prose that
+>    already exists in another artifact is cut from the code, and the code keeps
+>    a bare pointer at most. The failure mode is divergence. The same
+>    explanation maintained in four places drifts apart as each copy is edited on
+>    its own, and the copy in the code is the one nobody comes back to update, so
+>    it is the copy that ends up lying to the next reader.
 > 2. Altitude -- a comment explains intent and the higher-level logic,
 >    not the mechanism the code lowers to. Flag "what" comments; keep
 >    "why" comments. The same filter runs one level up, on the document
@@ -439,7 +723,13 @@ comments out of a diff. A clean run is not a passing review.
 >    fact at the wrong altitude is cut here and raised there, not
 >    reworded.
 > 3. Length -- one line unless a second line is load-bearing. Flag any
->    comment longer than its point requires. Then judge the file, not only
+>    comment longer than its point requires. A doc comment on a declaration has
+>    a line cap, stated in Step 2b. Apply that cap here when Step 2b did not run
+>    on this diff, and stay off it when Step 2b did run, because re-reporting its
+>    finding buys nothing. When two comments say the same
+>    thing, name which one survives AND shorten it: deleting the copy while
+>    leaving the original untouched does not discharge the finding, and the
+>    original is usually the longer of the two. Then judge the file, not only
 >    each comment: when the same mechanical pattern (a wait, a flush, a
 >    retry) carries a multi-line comment at every occurrence, keep one and
 >    cut the rest, or move the explanation to the helper. A file the
@@ -458,7 +748,11 @@ comments out of a diff. A clean run is not a passing review.
 >    nothing, and the original is usually the longer one. Flag a list of
 >    findings that does not close with what the reader should do about
 >    them, and a link the reader is left to infer: what is obvious from
->    inside the work is not obvious from outside it.
+>    inside the work is not obvious from outside it. Length has a number
+>    here, so count the words of the body and report the count. A Summary
+>    earns about 120 words. A body covering several distinct defects may
+>    reach 150. Past that, the body needs a reason you can state in one
+>    line, and "the change was large" is not one.
 >
 > Pass B -- can a reader understand it? Assume the reader is a competent
 > engineer who is not a native English speaker, is new to this code, and
@@ -468,7 +762,11 @@ comments out of a diff. A clean run is not a passing review.
 > text this diff adds or changes.
 >
 > 5. Plain English. Short sentences, one idea each, active voice, common
->    words. Flag a rare or latinate word that has a plain equivalent
+>    words. FIRST check every sentence has a subject and a main verb: a
+>    noun-phrase fragment is a defect regardless of length, and the fix is to
+>    restore the subject and verb even though that adds words. Fragments are what
+>    compression produces when the author is cutting to a word budget, so expect
+>    them wherever the text is densest. Flag a rare or latinate word that has a plain equivalent
 >    (utilize -> use, leverage -> use, prior to -> before, in order to ->
 >    to, subsequent -> later, in the event that -> if), three or more
 >    chained clauses, a double negative, and any idiom or metaphor that
@@ -548,13 +846,23 @@ comments out of a diff. A clean run is not a passing review.
 >    sentence. A dash separating a section title from its subtitle is
 >    fine, because a title is not a spliced statement.
 >
+>13. Titles name the change in the maintainer's own words. Review the PR
+>    title and every commit title. A title must name the change with the
+>    domain noun and the verb the codebase already uses for it, never with a
+>    clever paraphrase. A title that describes the input instead of the
+>    change reads as a riddle. The reviewer rejected "fix(import): refuse
+>    a dump a third party can add lines to" with "makes absolutely no
+>    sense", because it names the input and never the change. Grep
+>    the touched files for the noun and the verb they use, then build the
+>    title out of those.
+>
 > When brevity and clarity pull apart, buy the clarity with word choice,
 > not extra lines: swap the hard word for the easy one, usually shorter
 > anyway. Pass B may not raise a comment's line count -- if word choice
 > cannot carry it, the comment is doing too much, and the fix is to cut
 > the *why* down rather than add a sentence.
 >
-> Every replacement you propose must itself satisfy rules 5-12, and must
+> Every replacement you propose must itself satisfy rules 5-13, and must
 > be SHORTER than what it replaces. Count both, and report the real
 > figure: an equal-length rewrite has not discharged a length finding,
 > and if the text cannot shrink without dropping a fact, say so and name
@@ -564,7 +872,8 @@ comments out of a diff. A clean run is not a passing review.
 > the requested fact and keeps everything already there is exactly where
 > length grows back.
 >
-> For each finding give `file:line` (or "PR body"), which rule it breaks,
+> For each finding give `file:line` (or "PR body", "PR title", "commit title"),
+> which rule it breaks,
 > the offending text, and the replacement -- or "drop". Do NOT comment on
 > correctness, tests, or design; those are other agents' jobs.
 >
@@ -655,7 +964,9 @@ Charter:
 An interface that is safe only because today's callers happen to avoid the wrong
 path is a finding, not a nit. "It does work" does not answer this pass. An
 interface that requires reading an object's state after a failed call is
-BLOCKING.
+BLOCKING. Step 5j holds the tie-break for everything else in this pass, so a
+finding whose fix adds a named entity for a single call site loses to the smaller
+shape.
 
 ### Step 5h: local idiom conformance (one agent, cheaper model)
 
@@ -728,6 +1039,99 @@ fix is to write it into the repo's rules file, not just to fix this PR. An
 implicit convention will be violated again by the next author who reads the rules
 literally.
 
+### Step 5j: scope & over-engineering (one agent)
+
+Run this whenever the feature is small and the diff is not, and always when the
+diff adds more than about 150 lines, or more test lines than twice its product
+lines. Step 1 recorded both counts, so the trigger is read off a number. Left as
+a judgement about whether a feature "feels" small, it fires only for a reviewer
+who has already reached this step's conclusion.
+
+The craft steps push one way. Step 5g asks for a struct returned by value in
+place of an in-out parameter, and Step 2b asks for a name where a bare literal
+sits at a call site. Both add named entities, and until this step no charter
+pushed the other way, so the skill only ever asked for more. Measured on a real PR whose feature
+was reading one command-line flag: three rounds guided by these steps produced a
+parse function returning a result type, a struct to carry its output, a helper
+wrapping a single error message, a usage printer lifted out of an inline block, a
+rename of `argv` and `argc` through the whole function body, span plumbing, a
+vector copy of the argument tail, three spellings of the flag where one was
+wanted, and the option name written three times in three forms, once as a named
+constant and twice as a bare literal. The reviewer's verdicts were "the PR is
+unreviewable", "STOP OVER ENGINEERING" and "the goal was to SIMPLIFY the PR, not
+to make it bad". Every addition was defensible on its own, and several came out
+of this skill's own craft steps. This step is the counterweight.
+
+> Read the feature's requirement from the ticket or the PR body, then walk the
+> diff hunk by hunk. Judge scope against that requirement and never against
+> taste. Report:
+>
+> - For each hunk, does the requirement need it? A hunk that would survive if the
+>   feature were dropped is a refactor riding along, so it belongs in its own PR.
+>   List those hunks with their line counts. One exception, and check it before
+>   you list any test hunk: a change to a fixture, a harness, an assertion helper
+>   or a shared table that makes existing tests able to fail buys coverage rather
+>   than spending lines. It is the cheapest coverage in the diff and never a
+>   refactor riding along, however unrelated to the requirement it looks. Say what
+>   it now catches, and move on.
+> - Renames and moves of code the feature did not have to touch. Name each one,
+>   because a rename inflates the line count without changing behaviour, which is
+>   the cheapest way to make a diff unreviewable.
+> - An abstraction whose only call site arrives in the same diff: a type, a
+>   helper, a wrapper around one error message, a function lifted out of a block
+>   that had one reader. Name it and say what inlining it would cost.
+> - Generality nothing asks for: a second flag spelling, a config value, an
+>   accepted enum value, a parameter that no caller in the tree and no line of the
+>   requirement needs. A parameter every product caller passes the same way is
+>   generality only when the tests do not need it either. A parameter the tests
+>   need is a seam and not generality, whatever it carries: an injected clock, a
+>   fixed random source, a supplied hostname or build id. It stays, and you say
+>   so rather than listing it, because silence reads as an oversight and invites
+>   the next reviewer to delete it.
+> - An abstraction the diff introduces and then does not use consistently, for
+>   example a named constant for a string that also appears twice as a bare
+>   literal. That inconsistency is evidence the name was carrying nothing.
+> - Count the named entities the diff introduces, meaning types, functions,
+>   constants and renamed locals, then state how many the requirement needs. Give
+>   both numbers, because a number is harder to argue with than an adjective.
+> - The counterfactual: state in lines the smallest diff that delivers the same
+>   behaviour, and put the actual diff's product line count beside it. Compare
+>   product against product, because tests deliver no behaviour and belong in the
+>   ratio below instead.
+> - The test lines the diff adds against the product lines it adds, fixtures and
+>   golden files counting as test. Give both numbers. Past about two to one, rank
+>   the added tests by lines spent per assertion and report the ranking.
+> - For each test at the top of that ranking, the shorter shape that keeps every
+>   case: a row in a table the diff or the file already has, a direct assertion in
+>   place of a one-row table, a literal in place of a helper with one call site,
+>   one fixture in place of two that differ only in fields the path under test
+>   never reads. Propose deleting lines, never cases.
+>
+> Report what to DELETE, with file:line. Do NOT propose a rewrite, a redesign or
+> a replacement abstraction, because proposing one is itself the failure mode this
+> step exists to catch. Do NOT comment on correctness, on whether a test asserts
+> the right thing, or on naming quality. Test code IS in scope here: judge the
+> lines a test spends, never the cases it covers.
+> Stay under 400 words.
+
+A hunk the requirement does not need is BLOCKING, and so is an actual diff more
+than roughly twice its counterfactual. The test-to-product ratio is reported
+with both numbers and is advisory on its own, because a test-only PR and a
+one-line fix carrying a large regression table both read high for good reasons.
+What blocks is a named line to delete whose deletion removes no case.
+
+**Precedence over the craft steps.** This step contradicts Step 5g and Step 2b on
+real diffs, so the tie-break is fixed here and not left to the reader.
+
+- A craft finding whose fix introduces a new named entity for a single call site
+  does not justify that entity by itself. Prefer the smaller shape and a name
+  that states the hazard.
+- The craft step wins when the shape it flags is a correctness hazard rather than
+  a taste question, for example a signature that leaves a caller reading state
+  after a failed call.
+- When the two genuinely conflict, the smaller diff wins, and the report tells
+  the reviewer which craft finding was traded away for it.
+
 ### Step 6: aggregate
 
 After the agents return, write a single report:
@@ -736,16 +1140,20 @@ After the agents return, write a single report:
 # Review verdict
 
 ## Scope of this review
-Ran: reader legibility, witness check, correctness invariants, tests,
-verification surface, design/ownership, module boundaries, design-doc/RFC
-requirement, comment/conciseness, interface shape, local idiom, repo
-conventions / file list (list which actually ran). NOT judged:
+Ran: reader legibility, witness check, correctness invariants, tests, test
+necessity and folding, verification surface, design/ownership, module boundaries,
+design-doc/RFC requirement, scope & over-engineering, comment/conciseness,
+interface shape, local idiom, repo conventions / file list (list which actually
+ran). NOT judged:
 <anything not run -- e.g. performance, security posture beyond the invariants
 checked, product fit>.
 
 ## Legibility
 - Highest-value edit: <the one change, line estimate> (BLOCKING when DIFF-tagged).
 - Other DIFF findings: <list>. PRE-EXISTING (advisory): <list>. Or "reads fine".
+- Doc comments on declarations: <per block, the comment's and the body's line
+  counts against the ten-line cap, and whether the block had to be read twice
+  before its contract was clear>.
 
 ## Witness check (if elements were added)
 - DEAD in tests: <list> (each BLOCKING). DEAD in product code: <list>.
@@ -757,17 +1165,34 @@ checked, product fit>.
 - ...
 
 ## Tests
+- Test lines added: <N> against <M> product lines (<ratio>). Past about 2:1, the
+  ranking by lines per assertion: <list>. Lines to delete without losing a case:
+  <file:line> (the ratio is advisory, a named deletable line is Step 5j's and
+  BLOCKING).
 - N audited; M confirmation-biased: <file:line>.
 - Behavior-bearing changes with NO test on the changed path: <list> (each BLOCKING).
 - Tests that only run by touching internals -- fake exposing private state, log or
   metric read as a channel, assertion on state after a failed call: <list>
   (report as a design finding naming the missing seam, NOT as a scaffolding request).
+- Tests that die to the same mutation set, or whose set is a subset of another's:
+  <list, with the fold and the invariant that keeps the coverage>.
+- Tests whose named subject the diff does not touch: <file:line -> owning
+  package>.
+- On a later round: tests an earlier round added, what each was working around,
+  and whether this round's harness changes have made any of them dead: <list, or
+  "first round">.
 
 ## Verification surface
 - High-risk areas touched: <list>. Only static coverage: <list>.
 
 ## Design & ownership
 - <sound / misplaced>: <one line; if misplaced, where it belongs and why>.
+- Right repository and layer: <fix / mitigation for an upstream defect -- name the
+  upstream defect and its ticket, and say whether the ticket exists>.
+- Parsed input, if the diff parses text it did not construct: <PRODUCER-OWNED /
+  PRODUCER-OWNED-AND-UNTRUSTED / THIRD-PARTY>: <the producer and its repository,
+  the structured precedent found, the tells, and for an untrusted format the
+  record a hostile value forges> (PRODUCER-OWNED-AND-UNTRUSTED is BLOCKING).
 
 ## Design-doc / RFC requirement (if the gate ran)
 - <NONE / NEEDS-DESIGN-DOC / NEEDS-RFC>: <what it touches; if needed, what has to be agreed first and who signs off> (a NEEDS-* verdict is BLOCKING).
@@ -789,16 +1214,30 @@ checked, product fit>.
 ## Reinvention (if code was added)
 - Duplicates: <symbol to reuse, file:line>. Near-misses: <list>.
 
+## Scope & over-engineering
+- Named entities introduced: <N>, against <M> the requirement needs.
+- Counterfactual: <lines> for the smallest diff, against <lines> actual (more
+  than roughly 2x is BLOCKING).
+- Hunks the requirement does not need: <file:line -> delete> (each BLOCKING).
+- Single-call-site abstractions, unasked generality, and names the diff uses
+  inconsistently: <list>.
+- Craft findings traded away for the smaller diff: <list, or "none">.
+
 ## Comments & prose (BLOCKING on self-review)
 - Earns its place: unnecessary / obvious comments <file:line -> drop>; "what"
   comments to lift to "why" <list>; over-long comments <list>; neighbouring
   comments the diff made wrong <file:line -> update or drop>.
+- Written elsewhere: <for each comment over about three lines, the artifacts
+  that hold the same content, naming artifact and line for the PR body, the
+  ticket and each project doc, or "searched, found nowhere else">.
 - Readable: hard words / long sentences <file:line -> replacement>; unexpanded
   acronyms or gratuitous jargon <list>; one concept named two ways <list>;
   comments opening with context instead of the point <file:line -> rewrite>;
   a requirement stated as "should" <file:line -> must / plain fact>;
   AI-writing tells <list>.
-- PR description: <concise and plain / what to cut and what to reword>.
+- PR description: <word count, against about 120 words, or 150 when it covers
+  several distinct defects; what to cut and what to reword>.
+- PR title and commit titles: <the maintainer's own words / the proposed rewrite>.
 
 ## Verdict
 - BLOCKING (must fix before merge): <list, or "none">.
@@ -811,11 +1250,17 @@ The BLOCKING bar -- any one blocks approval: the named highest-value legibility
 change on a DIFF-tagged finding (Step 2b); a DEAD test element from Step 2c; a
 P0 correctness violation; a behavior-bearing change with no test on the changed
 path; a design/ownership violation (duplicates or misplaces a responsibility
-another component owns); a broken module boundary; an interface that only yields what a caller needs by
+another component owns); a mitigation for an upstream defect that neither says
+so in the PR body nor names an upstream ticket that exists; a hand-written
+parser for a format one of our own programs produces, where that format also
+carries untrusted data (Step 5c); a broken module boundary; an interface that
+only yields what a caller needs by
 reading state left behind after a failed call (Step 5g); a NEEDS-DESIGN-DOC /
 NEEDS-RFC verdict where a change's scale outran any agreed written design (Step
-5f); on a self-review of your own PR, unfixed comment slop or a padded
-description (Step 5e). A clean correctness pass is NEVER on its own an
+5f); a hunk the stated requirement does not need, or a diff more than roughly
+twice its counterfactual (Step 5j); on a self-review of your own PR, unfixed
+comment slop or a padded description (Step 5e). A clean correctness pass is
+NEVER on its own an
 approval. Report correctness and approvability separately, and never write "safe
 to ship" from correctness alone. Lead with any BLOCKING finding.
 
@@ -886,13 +1331,43 @@ asserted, and a full review pass ran in between without noticing.
 
 A construct added because a reviewer or an earlier review round asked for it gets
 the same audit as any other line: verify it is load-bearing, not merely sound.
-"A review suggested it" is a provenance, not evidence.
+"A review suggested it" is a provenance, not evidence. This holds for this
+skill's own rounds and not only for a human's, so run it in every round of a
+multi-round self-review.
+
+**A round that changes the test harness re-opens every test an earlier round
+added.** A round often adds a test to work around something the harness cannot
+see, and a later round fixes the harness itself. The workaround is dead from that
+moment and nothing looks at it again, because a cleared list is a cache with no
+invalidation rule. Measured on a real PR: round 3 added a 58-line test that
+counted mock consumption by hand, round 4 gave the shared table the assertion
+that proves the same thing, and the workaround shipped anyway. So when a round
+changes a fixture, a harness, a shared table or an assertion helper, put every
+test an earlier round added back into Step 4b's input and report which ones
+survived.
 
 **A suggested rename can carry a semantic change.** When a reviewer offers a name
 via a suggestion block, check whether it means the same thing as the old one. An
 inverted name (`isDamaged` for a field that meant `isValid`) needs the logic
 inverted with it, or the name becomes a lie -- and the diff will look like a
 harmless rename.
+
+## Two process traps
+
+Both of these nearly shipped something wrong in a single day of using this skill,
+and neither is a code defect, so no charter above catches them.
+
+**`gh pr create` succeeds even when the push did not.** The command reports a
+created pull request after a rejected `git push`, and the pull request then shows
+stale code while you believe it shows the diff you just reviewed. Compare the
+pushed head against the local head before you trust what a PR contains.
+
+**Never relay an agent's finding as fact without checking it.** Two findings went
+to the user before anyone verified them, and both were wrong. A charter reported
+a test making a real network call to localhost, and the mock was in fact
+registered and intercepting the call. A peer reported an unpushed commit, and
+what it had misread was a rebase. Read the cited lines yourself before a finding
+leaves the session.
 
 ## LLM-generated PRs get stricter review
 
@@ -931,10 +1406,32 @@ PR prose that just restates the code). When any holds, raise the bar:
 - Never let this skill's own suggestions escape the witness check. A construct
   added because an earlier round asked for it is exactly where a no-op hides.
 - Never accept "general correctness" as an invariant.
+- More tests do not mean a better PR. Run Step 4b after the test-design audit,
+  fold tests that die to the same mutation set, and refuse any fold that buys its
+  lower count by widening an assertion.
+- Ask of every fix whether it belongs in this repository and this layer, or
+  whether it works around a defect the upstream component owns. A change that
+  would be deleted once the upstream defect is fixed is a mitigation, so it says
+  so in the PR body and names an upstream ticket you have checked exists. Ask
+  this per defect and not per file, because most consumer-side fixes are real
+  fixes.
+- Ask who produces every input the diff parses, and whether we control them. A
+  parser's complexity should be inversely proportional to that control, so text
+  from a program in our own organisation earns a machine-readable mode in the
+  producer instead of a parser in the consumer. When that format also carries
+  untrusted data, the parser is an injection surface and the finding is BLOCKING.
+  Step 5b cannot catch this, because the first parser of a format is NOVEL and
+  reads as a clean pass.
 - Craft is in scope, not a bonus. Run Step 5g (interface shape) and Step 5h
   (local idiom) on any diff that adds a declaration. Correctness findings alone
   do not predict whether a maintainer will ask for changes.
 - "It does work" never answers an interface-shape finding.
+- The craft steps ratchet upward, so Step 5j pushes back. A hunk the stated
+  requirement does not need belongs in its own PR, and an abstraction whose only
+  call site arrives in the same diff is not yet an abstraction. When a Step 5g or
+  Step 2b fix would add a named entity for one call site, the smaller shape wins
+  unless the flagged shape is a correctness hazard, and the report says which
+  craft finding was traded.
 - When a change is hard to test, that is a design finding, not a licence to build
   scaffolding. Name the missing seam; do not bless a fake, a log-as-channel, or
   an assertion on state after a failed call just because it reaches the path.
@@ -964,12 +1461,46 @@ PR prose that just restates the code). When any holds, raise the bar:
   self-review of your own PR its ambiguity-bearing findings are BLOCKING -- fix
   the slop before pushing; a two-word overrun is a nit. Do not let it widen the
   correctness agents' charters.
+- Run the prose pass on your OWN text before publishing, not only on the author's.
+  The PR body has a number. A Summary earns about 120 words, a body covering
+  several distinct defects may reach 150, and anything past that needs a stated
+  reason. Five bodies published at 241 to about 450 words were called "horrible
+  and unreviewable", and the same facts fitted in 85 to 152 words.
+- A title names the change in the words the code's maintainer already uses. Take
+  the domain noun and the verb from the touched files instead of paraphrasing,
+  and never describe the input where the change belongs.
+- Confirmation-biased tests come in six shapes (Step 4), and they recur inside
+  tests written to satisfy an earlier round. Audit a construct a review asked for
+  exactly like any other line.
+- Verify an agent's finding yourself before relaying it, and check the pushed
+  head against the local head before trusting what a PR shows.
 - Readability never licenses vagueness: a precise domain term stays, and gets
   expanded on first use rather than swapped for an everyday approximation. Nor
   does it license length: the one-line default is a ceiling Pass B may not raise.
 - A dedicated prose pass over the PR body (`/humanizer` or the equivalent) stays
   the gate, run before `gh pr create`; Step 5e's rule 8 is a second opinion on
   it, and the only pass that sees code comments.
+- A doc comment on a declaration earns about ten lines of prose, plus one line
+  per parameter and return value, and a block you had to read twice is a finding
+  whatever its sentence lengths and whatever its ratio to the body. Splitting one
+  long sentence into four short ones is not a fix, because every fact stays and
+  the line count grows. Move the threat model, the rationale and the history to
+  the PR body or the ticket, and keep the caller's contract in the comment.
+- A comment rewritten to satisfy a review finding is re-judged like any other
+  line, and the bar is that it got SHORTER. Prose edited in response to a finding
+  is where length grows: each pass adds the fact it was asked for and keeps
+  everything already there. Measured on a real PR: a doc block was flagged as too
+  long, rewritten twice across two rounds in response to that finding, grew each
+  time, and the human reviewer then blocked the PR on it, calling it extremely
+  hard to read and asking for a rewrite without an LLM.
+- Deleting a duplicated comment is not the same as fixing a long one. When the
+  same text sits in two places, the reflex is to keep the canonical copy and
+  delete the other; if the canonical copy is the unreadable one, that resolution
+  leaves the defect exactly where the reviewer will find it. Look for the copies
+  outside the code as well, in the PR body, the ticket and the project docs. A
+  threat model written in all four is four copies that will diverge, and the code
+  copy is the one nobody updates. One such block shipped because no charter had
+  been told to go and read the other three artifacts.
 - Never skip Step 4 (test-design) if the diff includes new tests --
   test-design bugs are the cheapest to introduce and the most likely
   to lock in the actual code bug.
