@@ -64,9 +64,17 @@ The two places a pull request wastes people's time: the review, and the wait.
   it, and the fix. Then it pushes and returns. It does not loop waiting for
   green, because `gh pr merge --auto` already does that for free.
 
+- **`/ci-warden`** watches a whole queue instead of one PR. It asks how many PRs
+  share a failure and whether the base branch has it too. That is what separates
+  an infrastructure outage from somebody's diff. Most of it is how to read the
+  evidence without being fooled. A green can prove nothing because the failure
+  case had gone. A re-run can overwrite a conclusion, and a total can be read as
+  coverage.
+
 ```
 /mechanical-refactor convert the visitor callbacks to take a span
 /babysit-ci 4821
+/ci-warden
 ```
 
 ## what-could-go-wrong
