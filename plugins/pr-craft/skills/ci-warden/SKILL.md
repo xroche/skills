@@ -163,7 +163,8 @@ concurrency group then cancels the fresh run on the current head, so the PR is
 left with no CI at all. Some runs refuse to re-run outright.
 
 Push instead, or merge the base branch in. A push produces a head the queue will
-not cancel.
+not cancel. Merging the base does two jobs, because it also pulls in whatever
+landed while the branch sat there.
 
 ## Coordinating with other people and agents
 
