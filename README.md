@@ -1,12 +1,13 @@
 # skills
 
-Claude Code skills I use and am willing to stand behind. Three plugins.
+Claude Code skills I use and am willing to stand behind. Four plugins.
 
 ```
 /plugin marketplace add xroche/skills
 /plugin install adversarial-review@xroche-skills
 /plugin install pr-craft@xroche-skills
 /plugin install what-could-go-wrong@xroche-skills
+/plugin install compact-text@xroche-skills
 ```
 
 ## adversarial-review
@@ -95,6 +96,20 @@ the model sits in an appendix for anyone who wants to audit it.
 It is explicit about what a bounded check on a hand-written model does and does
 not buy you. `LIMITATIONS.md` in the plugin is the part to read before treating a
 clean run as an answer.
+
+## compact-text
+
+For the document nobody reads because it is too long.
+
+**`/compact-text`** cuts an RFC, a report or a wiki page to a target length, by
+default half, without losing a fact its readers act on. Each point is graded against
+the decisions the readers take, and each chunk is rewritten to a hard word budget.
+Then agents look for what a diff cannot show: an instruction deleted while its
+reason stayed, and a rule whose condition no longer matches its consequence.
+
+```
+/compact-text docs/rfc-0012.md
+```
 
 ## Why the reviews are adversarial
 

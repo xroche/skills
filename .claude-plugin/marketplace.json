@@ -19,6 +19,11 @@
       "name": "what-could-go-wrong",
       "source": "./plugins/what-could-go-wrong",
       "description": "Answer an ordering, lifetime or concurrency worry with a concrete failing interleaving, or an honest no-finding. TLA+ behind the scenes, plain language in front."
+    },
+    {
+      "name": "compact-text",
+      "source": "./plugins/compact-text",
+      "description": "Halve a long RFC, report or wiki page without dropping a fact its readers act on. Hard word budgets, then agents charged to find lost instructions and inverted rules."
     }
   ]
 }
