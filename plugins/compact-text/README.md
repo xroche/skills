@@ -1,8 +1,7 @@
 # compact-text
 
 **`/compact-text`** cuts a long document to a target length, by default half, and keeps
-every fact its readers act on. It works on an RFC, a design doc, a report or a wiki page
-that people refuse to read at full length.
+every fact its readers act on. It works on an RFC, a design doc, a report or a wiki page.
 
 ```
 /compact-text docs/rfc-0012.md
@@ -14,7 +13,8 @@ ledger that grades every point against those decisions, and a hard word budget. 
 the rewrite, agents look for two failures that no diff shows. One is a kept reason
 whose instruction is gone. The other is a rule whose consequence no longer matches its
 condition.
-`scripts/gates.py` catches lost numbers, identifiers and URLs.
+`scripts/gates.py` reports lost numbers, identifiers and URLs. Its tests run with
+`python3 -m unittest test_gates` from that directory.
 
 A full pass costs about six agents per chunk. The light pass costs three per chunk, for
 documents under about 3,000 words. `EVIDENCE.md` holds the numbers from the run the

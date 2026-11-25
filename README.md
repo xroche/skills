@@ -102,10 +102,7 @@ clean run as an answer.
 For the document nobody reads because it is too long.
 
 **`/compact-text`** cuts an RFC, a report or a wiki page to a target length, by
-default half, without losing a fact its readers act on. Each point is graded against
-the decisions the readers take, and each chunk is rewritten to a hard word budget.
-Then agents look for what a diff cannot show: an instruction deleted while its
-reason stayed, and a rule whose condition no longer matches its consequence.
+default half, without losing a fact its readers act on.
 
 ```
 /compact-text docs/rfc-0012.md
@@ -147,8 +144,9 @@ survives a review that checks measurements.
 
 ## Requirements
 
-Claude Code, and for the review skills a harness that can run several subagents
-in parallel. Per-agent
+Claude Code, and for the review skills and `compact-text` a harness that can run
+several subagents in parallel. `compact-text` also needs `python3` for its gate
+script. Per-agent
 model choice is used to double the hardest invariant and to run the prose pass on
 something cheap; both degrade gracefully without it. Some passes shell out to
 `gh`. `what-could-go-wrong` downloads TLA+ and a JRE on first use, into a cache

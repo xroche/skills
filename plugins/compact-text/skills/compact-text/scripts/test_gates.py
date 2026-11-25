@@ -70,6 +70,62 @@ class Gates(unittest.TestCase):
         row = "| " + " ".join(["word"] * 40) + " |\n"
         self.assertNotIn("long", run(row, row))
 
+    def test_clean_text_raises_no_flag(self):
+        out = run(OLD, OLD)
+        for flag in ("banned", "BROKEN", "long"):
+            self.assertNotIn(flag, out)
+
+    def test_fact_that_changed_form_is_not_gone(self):
+        for old, new in (
+            ("Set 3 retries.", "Set `retries=3`."),
+            ("See line 42 of foo.c.", "See foo.c:42."),
+            ("PROJ-9 (https://j.io/browse/PROJ-9)", "https://j.io/browse/PROJ-9"),
+            ("Host example.com:8080.", "Port 8080 of example.com."),
+            ("About 1,231 words.", "About 1231 words."),
+            ("Up 50%.", "Up 50 percent."),
+            ("Cap 591, then stop.", "Cap 591 then stop."),
+            ("At **https://x.com/a**.", "At https://x.com/a now."),
+            ('Read "https://x.com/a".', "Read https://x.com/a."),
+        ):
+            with self.subTest(old=old):
+                self.assertNotIn("GONE", run(old, new))
+
+    def test_versions_are_whole_facts(self):
+        self.assertIn("GONE   number v38", run("Ship v38.", "Ship it."))
+        self.assertIn("GONE   number 2.1.224", run("Use 2.1.224.", "Use 2.1.225."))
+        self.assertIn("NEW    number 2.1.225", run("Use 2.1.224.", "Use 2.1.225."))
+
+    def test_wrapped_code_span_still_tracks_the_next_one(self):
+        out = run("Use `foo\nbar` and `baz` here.", "Use `foo bar` here.")
+        self.assertIn("GONE   code `baz`", out)
+        self.assertNotIn("GONE   code `foo", out)
+
+    def test_long_sentence_is_reported_and_short_ones_are_not(self):
+        self.assertIn("long   26w", run("x.\n", " ".join(["w"] * 26) + ".\n"))
+        self.assertNotIn("long", run("x.\n", ("A " + "a " * 19 + "b. ") * 2))
+
+    def test_every_banned_spelling(self):
+        for text, label in (
+            ("Ok. Currently, b", "Currently opener"),
+            ("a -- b", "em dash"),
+        ):
+            self.assertIn(f"banned {label}", run("x", text))
+
+    def test_budget_boundary_and_overrun_amount(self):
+        self.assertIn("within", run("a b c", "a b c", 3))
+        self.assertIn("OVER by 2", run("a b c", "a b c d e", 3))
+
+    def test_main_reports_missing_rewrite(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "chunk-y.md"), "w") as f:
+                f.write(OLD)
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), mock.patch(
+                "sys.argv", ["gates.py", d]
+            ):
+                gates.main()
+            self.assertIn("MISSING new-y.md", out.getvalue())
+
     def test_main_reads_work_dir_and_budgets(self):
         with tempfile.TemporaryDirectory() as d:
             for name, text in (("chunk-x.md", OLD), ("new-x.md", "Short.\n")):
@@ -82,6 +138,7 @@ class Gates(unittest.TestCase):
             with contextlib.redirect_stdout(out), mock.patch("sys.argv", argv):
                 gates.main()
             self.assertIn("budget 10, within", out.getvalue())
+            self.assertIn("== total: 27 -> 1 words (96.3% cut)", out.getvalue())
             self.assertIn("== total:", out.getvalue())
 
 

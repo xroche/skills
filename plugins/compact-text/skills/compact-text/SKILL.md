@@ -26,8 +26,8 @@ you start.
 Use the light pass when the document is under about 3,000 words or is a single chunk.
 It runs the rewrite, the failure-mode check and the LOSS charter. Add BASELINE when
 the document argues for something, such as a proposal or a self-review. Never skip the
-failure-mode check or LOSS, because those two found almost every blocking defect on the
-reference run.
+failure-mode check or LOSS. On the reference run, the two failures they target produced
+almost every blocking finding.
 
 ## Step 1: name the readers, their decisions and the target
 
@@ -43,12 +43,14 @@ about 200 words a minute.
 ## Step 2: split and set the budgets
 
 Split the document into chunks of 600 to 3,500 words along its own top-level sections.
-Name every chunk and use the name in three files, because the gates and the charters
-expect this convention:
+Put every file in one work directory. Name every chunk and use the name in each
+file, because the gates and the charters expect this convention:
 
 - `chunk-<name>.md` holds the original.
 - `new-<name>.md` holds the rewrite.
 - `class-<name>.md` holds the ledger.
+- `checks-<name>.md` holds the failure-mode check from Step 4.
+- `budgets.txt` and `gates.txt` hold the budgets and the gate report for all chunks.
 
 Mark each collapsed or optional section, such as a `<details>` block or an appendix, as
 `[FOLD: title]` ... `[/FOLD]`. The material outside folds is the visible reading path,
@@ -56,8 +58,20 @@ and most readers read only that part.
 
 **The budget is a word count per chunk, not a percentage of the document.** Multiply
 each chunk's word count by the target ratio and round to the nearest ten. Write one
-`<name> <words>` line per chunk to `budgets.txt`, which the gates read. A brief that says
+`<name> <words>` line per chunk to `budgets.txt`. A brief that says
 "compact this" returns a cut of about one tenth. A hard budget returns about half.
+
+## Rules for every agent you launch
+
+**A file's existence is not an agent's completion.** On the reference run the
+coordinator saw a `new-<name>.md` file appear and started a second agent on that chunk.
+The two agents wrote one file, and one round of work was lost. Wait for each agent's own
+completion signal, and run two agents on one file one after the other.
+
+**You own every cross-chunk decision.** A chunk agent told that another chunk covers a
+fact will drop it, and two such decisions do not compose. On the reference run two
+chunks dropped one requirement, each because the other stated it. Keep each fact in one
+named chunk, and tell no chunk agent that another chunk covers a fact.
 
 ## Step 3: classify and rewrite
 
@@ -76,7 +90,8 @@ with the negation. If the negation reads as a defect report rather than as news,
 claim asserts what the reader already expects. For example, "my reviews changed what
 colleagues shipped" negates to "my reviews changed nothing", which is a defect report.
 Grade such a claim DROP and tag it ` [BASELINE]`. Something specific usually hides under
-it, so the rewriter should state that fact instead of deleting the line. Under that
+it. When the chunk states that fact, it gets its own NEED or SHOULD line and replaces the
+claim in the rewrite. Under that
 review sentence sat three facts. Half the colleagues were outside the author's team. Two
 changed a design rather than a line. Two were failures that would have reported success.
 
@@ -91,8 +106,8 @@ most likely to invert under compression.
 honestly. The rewriter lists each NEED fact that kept it over budget. If a chunk ends
 more than 10% over budget without that list, run Appendix B on it.
 
-**A rewriter's report of compliance is not evidence.** On the reference run every agent
-reported hitting budget with no NEED fact dropped. Four NEED facts had gone anyway. The
+**A rewriter's report of compliance is not evidence.** On the reference run five of six
+agents reported hitting budget with no NEED fact dropped. Four NEED facts had gone anyway. The
 budget is safe for the word count and not for the content, so Step 4 always runs.
 
 ## Step 4: the failure-mode check
@@ -106,8 +121,8 @@ that sounds like content. For example, one rewrite kept "deleting a record unlin
 neither its data directory nor its metadata file" and lost "needs an end-to-end probe".
 Two named operator roles kept their titles and lost the halt procedure each owned.
 
-**A condition that lost its consequence.** Meaning inverts when a rule goes from 53
-words to 26. On the reference run one chunk produced five shapes of this:
+**A condition that lost its consequence.** A rule's meaning can invert when the rule is
+shortened. On the reference run one chunk produced five shapes of this:
 
 - Two branches of a version rule merged, so a node not yet upgraded appeared to fail
   every request.
@@ -120,17 +135,20 @@ words to 26. On the reference run one chunk produced five shapes of this:
 When a rule will not fit the budget with its condition intact, keep the condition and
 cut a different fact.
 
+The check writes `checks-<name>.md`. Step 7 applies every UNMATCHED line and every
+shifted rule in it.
+
 ## Step 5: the mechanical gates
 
 ```
-python3 scripts/gates.py <work_dir>
+python3 <skill_dir>/scripts/gates.py <work_dir> > <work_dir>/gates.txt
 ```
 
-The script compares each `chunk-<name>.md` with its `new-<name>.md`. For each
-chunk, it reports the word count against the budget. It lists the numbers, ticket IDs,
-code spans, `file:line` citations and URLs that went missing or appeared. It also reports lost fold
-and heading titles, sentences over 25 words outside tables, and the banned
-constructions.
+`<skill_dir>` is the directory that holds this file. The script compares each
+`chunk-<name>.md` with its `new-<name>.md`. For each chunk, it reports the word count
+against the budget. It lists the numbers, versions, ticket IDs, code spans, `file:line`
+citations and URLs that went missing or appeared. It also reports lost fold and heading
+titles, sentences over 25 words outside tables, and the banned constructions.
 
 **The gates issue no verdict.** The script exits 0 whatever it finds, and a clean report
 does not mean the rewrite is safe. On the reference run the gates reported none of the
@@ -140,21 +158,27 @@ not see it, because 591 was present in both texts.
 
 Read every line before acting on it:
 
-- `GONE` means absent entirely, and only `GONE` is a possible loss. Check each one
-  against a DROP line in the ledger.
+- `GONE` means absent from the rewrite in any form, and only `GONE` is a possible
+  loss. Check each one against a DROP line in the ledger. A number that moved into a
+  code span or a citation still counts as present.
+- `NEW` means the rewrite has a fact the source lacks. Check it for invention.
+- `BROKEN` means the fold markers no longer pair up, and `banned` names a construction
+  the rewrite charter forbids.
 - `dedup` means the item is still present, but fewer times. That is usually the intended
   change.
 - A `GONE` identifier can be a duplicate spelling that the rewrite collapsed. For
   example, routes spelled both `:id` and `{id}` become one spelling, which is a fix.
-- The long-sentence list counts a whole list item as one sentence when it has no final
-  period.
+- The long-sentence list merges a list item that has no final period with the next
+  one. It also merges a sentence with the next one when that one starts in lower
+  case.
 
 ## Step 6: the verification charters
 
 Run one agent per charter per chunk with Appendix C. Never ask one agent to "review the
 rewrite", because that returns style notes. Give each agent the source chunk, the
 rewrite, the ledger, the gate output and the reader list from Step 1. Forbid it to
-re-report what the gates catch.
+re-report what the gates catch. A light pass runs LOSS only, plus BASELINE for a
+document that argues for something.
 
 The four charters are LOSS, HALLUCINATION, VERBOSE and BASELINE. Run BASELINE first on a
 document that argues for something. A proposal asserts the practices any such change
@@ -173,7 +197,8 @@ any chunk.
 
 ## Step 7: apply the findings
 
-Raise the budget by the cost of the findings you accept, and say so. Every word you buy
+Apply the charter findings and every UNMATCHED line and shifted rule in
+`checks-<name>.md`. Raise the budget by the cost of the findings you accept, and say so. Every word you buy
 back must restore a condition, an instruction or a figure from the source. If it does
 neither, it is a rewrite, and a rewrite is judged against the budget again.
 
@@ -185,28 +210,17 @@ decision.
 No per-chunk agent can do this pass, so you do it. A fact can be cut from one chunk
 while a surviving sentence in another chunk still refers to it. Grep the assembled text
 for references by name and by number, such as "the ledger", "rule 3" and "the phase
-table". Then confirm each target survives.
+table". Then confirm each target survives. On the reference run a sentence still
+referred to a requirement that two chunks had both dropped.
 
-## Step 9: coordinate the agents
-
-**A file's existence is not an agent's completion.** On the reference run the
-coordinator saw a `new-<name>.md` file appear and started a second agent on that chunk.
-The two agents wrote one file, and one round of work was lost. Wait for each agent's own
-completion signal, and run two agents on one file one after the other.
-
-**You own every cross-chunk decision.** A chunk agent told that another chunk covers a
-fact will drop it, and two such decisions do not compose. On the reference run two
-chunks dropped one requirement, each because the other stated it. A sentence elsewhere
-still referred to it. Keep each fact in one named chunk, or remove every reference to
-it.
-
-## Step 10: report
+## Step 9: report
 
 Report three measurements:
 
 - the words before and after, for the whole document and for the visible reading path
   outside folds
-- the number of blocking findings the charters returned, and how many you fixed
+- the number of blocking findings the charters returned, the UNMATCHED lines and
+  shifted rules in the checks files, and how many of each you fixed
 - every NEED fact that kept a chunk over budget
 
 Give the true percentage. If the target was unreachable without dropping a NEED fact,
@@ -234,8 +248,9 @@ Hand this to one agent per chunk, with the placeholders filled in.
 >
 > A claim the reader already expects of anyone doing this work is DROP too. Negate it,
 > and if the negation reads as a defect report rather than as news, it is the baseline.
-> Tag that line ` [BASELINE]`. Where something sharper hides under it, write that fact
-> instead. An admission of a setback is never baseline.
+> Tag that line ` [BASELINE]`. When your chunk states something sharper under it, give
+> that fact its own NEED or SHOULD line and write it instead. Never invent one. An
+> admission of a setback is never baseline.
 >
 > Tag every point that states a rule, a condition or a guarantee with ` [RULE]`.
 >
@@ -308,7 +323,7 @@ Run one agent per charter per chunk, with one CHARTER filled in per agent.
 
 > A document was compacted because its readers refused to read it. Its readers are
 > <readers>, and they read it to take <decisions>. You are verifying one chunk against
-> ONE named failure mode. Do not report anything outside your charter, and do not
+> ONE named charter. Do not report anything outside your charter, and do not
 > rewrite the text.
 >
 > Read the original `chunk-<CHUNK>.md`, the rewrite `new-<CHUNK>.md`, the ledger
@@ -342,11 +357,11 @@ Run one agent per charter per chunk, with one CHARTER filled in per agent.
 > 2. facts stated twice
 > 3. methodology or self-correction narrative that survived
 > 4. hedges
-> 5. sentences over 25 words that would be clearer as two
+> 5. sentences over 25 words in a table or a list, which the gates do not measure
 >
 > Give each one the sentence and either the shorter replacement or "cut". Also
-> flag any fragment without a subject or main verb, and any em dash, semicolon or
-> parenthesis that joins two statements.
+> flag any fragment without a subject or main verb, and any parenthesis that joins two
+> statements. The gates already report em dashes and semicolons.
 >
 > **CHARTER=BASELINE.** Find claims that assert what the reader already expects, so they
 > move no decision. Read the reader list first, because it is your prior. Negate every
@@ -379,21 +394,21 @@ Run one agent per chunk, after the rewrite and before the gates.
 > ledger `class-<CHUNK>.md`. The ledger grades every point NEED, SHOULD or DROP and tags
 > every rule with `[RULE]`. If you cannot read a file, stop and say so.
 >
-> **Check A: a kept reason whose instruction is gone.** Walk the ledger's NEED lines one
+> **Check 1: a kept reason whose instruction is gone.** Walk the ledger's NEED lines one
 > at a time. For each one, quote the sentence in the rewrite that carries the
 > instruction, which is what the reader must do. A surviving reason is not an
 > instruction. Mark a line UNMATCHED rather than stretching a quote to cover it, because
 > the unmatched lines are the output of this check.
 >
-> **Check B: a condition that lost its consequence.** Walk the `[RULE]` lines. Read each
+> **Check 2: a condition that lost its consequence.** Walk the `[RULE]` lines. Read each
 > rule in the rewrite against the original, clause by clause. Confirm the condition, the
 > branch the consequence attaches to, the scope of the consequence and its duration. The
 > tags are incomplete, so repeat the check on every bolded lead. Repeat it also on every
 > sentence that contains "only", "unless", "when" or "because" and lost more than a third
 > of its words.
 >
-> Write `checks-<CHUNK>.md` with two tables. Check A has the columns
-> `NEED line | instruction sentence in the rewrite, or UNMATCHED`. Check B has the
+> Write `checks-<CHUNK>.md` with two tables. Check 1 has the columns
+> `NEED line | instruction sentence in the rewrite, or UNMATCHED`. Check 2 has the
 > columns `rule | old clause | new clause | VERIFIED, or the shift you found`.
 >
 > Quote, never paraphrase. Default to refuting your own finding, because a finding you
