@@ -1,12 +1,13 @@
 # skills
 
-Claude Code skills I use and am willing to stand behind. Three plugins.
+Claude Code skills I use and am willing to stand behind. Four plugins.
 
 ```
 /plugin marketplace add xroche/skills
 /plugin install adversarial-review@xroche-skills
 /plugin install pr-craft@xroche-skills
 /plugin install what-could-go-wrong@xroche-skills
+/plugin install compact-text@xroche-skills
 ```
 
 ## adversarial-review
@@ -96,6 +97,17 @@ It is explicit about what a bounded check on a hand-written model does and does
 not buy you. `LIMITATIONS.md` in the plugin is the part to read before treating a
 clean run as an answer.
 
+## compact-text
+
+For the document nobody reads because it is too long.
+
+**`/compact-text`** cuts an RFC, a report or a wiki page to a target length, by
+default half, without losing a fact its readers act on.
+
+```
+/compact-text docs/rfc-0012.md
+```
+
 ## Why the reviews are adversarial
 
 Generic charters return generic findings. "Review this diff for bugs" surfaces
@@ -132,8 +144,9 @@ survives a review that checks measurements.
 
 ## Requirements
 
-Claude Code, and for the review skills a harness that can run several subagents
-in parallel. Per-agent
+Claude Code, and for the review skills and `compact-text` a harness that can run
+several subagents in parallel. `compact-text` also needs `python3` for its gate
+script. Per-agent
 model choice is used to double the hardest invariant and to run the prose pass on
 something cheap; both degrade gracefully without it. Some passes shell out to
 `gh`. `what-could-go-wrong` downloads TLA+ and a JRE on first use, into a cache

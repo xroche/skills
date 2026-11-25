@@ -1,0 +1,8 @@
+{
+  "name": "compact-text",
+  "description": "Cut a long document to about half its length without losing a fact its readers act on: a graded ledger, a hard word budget per chunk, and narrow-charter agents that look for what a diff cannot see.",
+  "version": "0.1.0",
+  "author": "Xavier Roche",
+  "license": "MIT",
+  "homepage": "https://github.com/xroche/skills/tree/main/plugins/compact-text"
+}
