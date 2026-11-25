@@ -35,6 +35,12 @@ HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
 LONG = 25
 
 
+def read(path):
+    """Return the whole file at path as text."""
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
 def prose(text):
     """Return the text without fenced code blocks and table rows."""
     text = re.sub(r"^```.*?^```", "", text, flags=re.S | re.M)
@@ -70,7 +76,7 @@ def budgets(work_dir):
     if not os.path.exists(path):
         return {}
     out = {}
-    for line in open(path, encoding="utf-8"):
+    for line in read(path).splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[1].isdigit():
             out[parts[0]] = int(parts[1])
@@ -129,8 +135,7 @@ def main():
         if not os.path.exists(new_path):
             print(f"== {name}: MISSING new-{name}.md")
             continue
-        old = open(path, encoding="utf-8").read()
-        new = open(new_path, encoding="utf-8").read()
+        old, new = read(path), read(new_path)
         total_old += len(old.split())
         total_new += len(new.split())
         report(name, old, new, limits.get(name))
