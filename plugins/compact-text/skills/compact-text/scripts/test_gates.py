@@ -80,7 +80,7 @@ class Gates(unittest.TestCase):
             ("Set 3 retries.", "Set `retries=3`."),
             ("See line 42 of foo.c.", "See foo.c:42."),
             ("PROJ-9 (https://j.io/browse/PROJ-9)", "https://j.io/browse/PROJ-9"),
-            ("Host example.com:8080.", "Port 8080 of example.com."),
+            ("See src/a.py:42.", "See line 42 of src/a.py."),
             ("About 1,231 words.", "About 1231 words."),
             ("Up 50%.", "Up 50 percent."),
             ("Cap 591, then stop.", "Cap 591 then stop."),
@@ -89,6 +89,20 @@ class Gates(unittest.TestCase):
         ):
             with self.subTest(old=old):
                 self.assertNotIn("GONE", run(old, new))
+
+    def test_real_loss_is_not_hidden_by_lookalikes(self):
+        for old, new in (
+            ("Retry 3 times. Fixed in PROJ-3.", "Fixed in PROJ-3."),
+            ("Retry 3 times.", "See https://x.org/pull/3 and v3."),
+            ("Run `id` now.", "It did run."),
+            ("Run `make` now.", "It makes sense."),
+            ("See src/a.py:42.", "src/a.py changed, see b.py:42 for 420 rows."),
+            ("Docs at https://e.com/docs today.", "Docs at https://e.com/docs/v2."),
+            ("Use ?id=1 at https://e.com/?id=1 now.", "Use https://e.com/?id=12 now."),
+            ("Fix PROJ-1 now.", "Fix PROJ-12 now."),
+        ):
+            with self.subTest(old=old):
+                self.assertIn("GONE", run(old, new))
 
     def test_versions_are_whole_facts(self):
         self.assertIn("GONE   number v38", run("Ship v38.", "Ship it."))

@@ -53,40 +53,51 @@ def prose(text):
 
 
 def norm(text):
-    """Collapse whitespace and drop thousands separators."""
+    """Collapse whitespace, drop thousands separators, spell percent as %."""
     text = re.sub(r"\s+", " ", text)
-    return re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", text)
+    text = re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", text)
+    return re.sub(r"(?<=\d) ?percent\b", "%", text)
 
 
 def facts(text):
-    """Return a Counter of (kind, value) for every fact-bearing token."""
+    """Return a Counter of (kind, value) for every fact in the normalized text."""
     found = Counter()
-    rest = text
+    rest = norm(text)
     for kind, pattern in FACT_PATTERNS.items():
         for m in re.finditer(pattern, rest):
-            value = re.sub(r"\s+", " ", m.group(0))
+            value = m.group(0)
             value = value.rstrip(URL_TAIL) if kind == "url" else value
             found[(kind, value.rstrip(","))] += 1
         rest = re.sub(pattern, " ", rest)
     return found
 
 
-def number_in(core, text):
-    return re.search(rf"(?<![\d.]){re.escape(core)}(?!\.?\d)", text)
+def token_in(value, text):
+    return re.search(rf"(?<![\w-]){re.escape(value)}(?![\w-])", text)
 
 
-def present(kind, value, text):
-    """Is this fact still somewhere in text, in any form or context?"""
+def present(kind, value, text, found):
+    """Is this fact still in the text, as itself or in a form that keeps it?
+
+    Strict by default, because a silent loss costs more than a false GONE.
+    """
+    if (kind, value) in found:
+        return True
+    of = {k: [v for (kk, v) in found if kk == k] for k in FACT_PATTERNS}
     if kind == "number":
-        return number_in(norm(value).lstrip("v").rstrip("%"), text)
+        return any(token_in(value, v.strip("`")) for v in of["code"]) or any(
+            v.rsplit(":", 1)[1] == value for v in of["file:line"]
+        )
     if kind == "code":
-        return norm(value.strip("`")) in text
+        inner = value.strip("`")
+        return any(token_in(inner, v.strip("`")) for v in of["code"])
     if kind == "file:line":
-        path, line = value.rsplit(":", 1)
-        return path in text and number_in(line, text)
+        path, line = map(re.escape, value.rsplit(":", 1))
+        forms = rf"{path},? line {line}\b|\bline {line} (?:of|in) {path}"
+        return bool(re.search(forms, text))
     if kind == "ticket":
-        return re.search(rf"\b{re.escape(value)}\b", text)
-    return value in text
+        return token_in(value, text)
+    return re.search(re.escape(value) + r"(?![\w/?=&%#~+-])", text)
 
 
 def report(name, old, new, budget):
@@ -101,12 +112,12 @@ def report(name, old, new, budget):
     f_old, f_new = facts(old), facts(new)
     n_old, n_new = norm(old), norm(new)
     for (kind, value), n in sorted(f_old.items()):
-        if not present(kind, value, n_new):
+        if not present(kind, value, n_new, f_new):
             print(f"  GONE   {kind} {value}")
         elif 0 < f_new[(kind, value)] < n:
             print(f"  dedup  {kind} {value} ({n} -> {f_new[(kind, value)]})")
     for kind, value in sorted(f_new):
-        if not present(kind, value, n_old):
+        if not present(kind, value, n_old, f_old):
             print(f"  NEW    {kind} {value}")
 
     for label, pattern in (("fold", FOLD), ("heading", HEADING)):
