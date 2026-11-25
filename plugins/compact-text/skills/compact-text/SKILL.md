@@ -160,9 +160,9 @@ Read every line before acting on it:
 
 - `GONE` means absent from the rewrite in any form, and only `GONE` is a possible
   loss. Check each one against a DROP line in the ledger. A number that moved into a
-  code span or a citation still counts as present. Other changes of form, such as a
-  host and port spelled out in prose, show as `GONE`, because a false alarm costs less
-  than a silent loss.
+  code span or a citation still counts as present. Other changes of form show as `GONE`,
+  such as a host and port spelled out in prose. A false alarm costs less than a silent
+  loss.
 - `NEW` means the rewrite has a fact the source lacks. Check it for invention.
 - `BROKEN` means the fold markers no longer pair up, and `banned` names a construction
   the rewrite charter forbids.
